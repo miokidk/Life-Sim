@@ -1,0 +1,1335 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7498488470551170827
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6823593525682373030}
+  - component: {fileID: 734212229772827832}
+  - component: {fileID: 4977841798586042504}
+  - component: {fileID: 4730764322677709282}
+  - component: {fileID: 1054480431186720368}
+  - component: {fileID: -860244632691300756}
+  - component: {fileID: 5624660200481644595}
+  - component: {fileID: 7492740009622404211}
+  m_Layer: 0
+  m_Name: Character
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6823593525682373030
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.45, y: 0.875, z: 0.45}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &734212229772827832
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &4977841798586042504
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &4730764322677709282
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2111227d7d7a24e0898987be9049914a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  profile:
+    first_name: 
+    last_name: 
+    age:
+      years: 0
+      months: 0
+    language:
+      english: 0
+      spanish: 0
+      french: 0
+      chinese: 0
+      arabic: 0
+      primary_language: 
+    gender: 0
+    sex: 0
+    voice:
+      pitch: 81
+      tone: 18
+      timbre: 18
+    skin_color: 0
+    height:
+      feet: 1
+      inches: 6
+    weight:
+      pounds: 6
+    hair_type: 0
+  qualities:
+    identity:
+      self_awareness: 0
+      self_esteem: 0
+      ego: 0
+    emotions:
+      emotional_intelligence: 0
+      optimism: 0
+      eccentricity: 0
+      loneliness: 0
+    cognitive_abilities:
+      logic: 0
+      creativity: 0
+      focus: 0
+      intelligence: 0
+    social_skills:
+      sociality: 0
+      cooperation: 0
+      politeness: 0
+      charisma: 0
+      humility: 0
+      sense_of_humor: 0
+    romance:
+      sensuality: 0
+      passion: 0
+      flirtation: 0
+      seduction: 0
+    moral_compass:
+      honesty: 0
+      responsibility: 0
+      generosity: 0
+      moral_strength: 0
+      spirituality: 0
+    resilience:
+      independence: 0
+      perseverance: 0
+      courage: 0
+      patience: 0
+      self_control: 0
+      decisiveness: 0
+  emotions:
+    amazement: 0
+    love: 0
+    joy: 0
+    relief: 0
+    excitement: 0
+    confidence: 0
+    surprise: 0
+    pride: 0
+    anger: 0
+    sadness: 0
+    grief: 0
+    fear: 0
+    anxiety: 0
+    guilt: 0
+    desire: 0
+    affection: 0
+    playfulness: 0
+    boredom: 0
+  relationships:
+    people: []
+  skills:
+    list: []
+  traits:
+    adventurous: 0
+    ambitious: 0
+    artistic: 0
+    argumentative: 0
+    carefree: 0
+    cautious: 0
+    competitive: 0
+    curious: 0
+    decisive: 0
+    dependable: 0
+    determined: 0
+    distant: 0
+    energetic: 0
+    friendly: 0
+    frugal: 0
+    hygienic: 0
+    indecisive: 0
+    impulsive: 0
+    jealous: 0
+    leader: 0
+    loud: 0
+    loyal: 0
+    materialistic: 0
+    mean: 0
+    messy: 0
+    perceptive: 0
+    playful: 0
+    practical: 0
+    punctual: 0
+    quiet: 0
+    rebellious: 0
+    resourceful: 0
+    sarcastic: 0
+    sentimental: 0
+    serious: 0
+    silly: 0
+    spontaneous: 0
+    stoic: 0
+    stubborn: 0
+    thoughtful: 0
+    tidy: 0
+    visionary: 0
+  needs:
+    hunger: 0
+    thirst: 0
+    sleep: 0
+    urination: 0
+    defecation: 0
+    hygiene: 0
+    social_interaction: 0
+    mental_stimulation: 0
+  senses:
+    sight:
+      visual_acuity: 0
+      color_perception: 0
+      light_sensitivity: 0
+    hearing:
+      auditory_acuity: 0
+      noise_sensitivity: 0
+    taste:
+      flavor_discrimination: 0
+    touch:
+      heat_sensitivity: 45
+      cold_sensitivity: 45
+      pain_tolerance: 0
+  habitsAndHobbies:
+    list: []
+  thoughtsAndFeelings:
+    thought_categories:
+      positive_thoughts:
+        self_perception:
+          confident: 0
+          clear_headed: 0
+          motivated: 0
+          optimistic: 0
+          mindful: 0
+          proud: 0
+          resilient: 0
+          empowered: 0
+        cognitive_state:
+          amazed: 0
+          surprised: 0
+          focused: 0
+          distracted: 0
+          contemplative: 0
+          inspired: 0
+          inquisitive: 0
+        planning_and_reflection:
+          planning: 0
+          daydreaming: 0
+          connected_to_nature: 0
+          appreciative_of_surroundings: 0
+          future_oriented: 0
+          reflective: 0
+        action_and_productivity:
+          productive: 0
+          creative: 0
+          generous: 0
+          learning: 0
+          developing_skills: 0
+          self_improving: 0
+          efficient: 0
+          determined: 0
+        financial_thoughts:
+          stable: 0
+          budgeting: 0
+          financially_planning: 0
+          thriving: 0
+          financially_independent: 0
+      negative_thoughts:
+        self_perception:
+          anxious: 0
+          confused: 0
+          doubtful: 0
+          overwhelmed: 0
+          pessimistic: 0
+          stressed: 0
+          distrustful: 0
+          inadequate: 0
+          ashamed: 0
+        cognitive_state:
+          bored: 0
+          shocked: 0
+          unfocused: 0
+          scattered: 0
+          indifferent: 0
+          uninspired: 0
+          ignorant: 0
+        planning_and_reflection:
+          disorganized: 0
+          lost_in_thought: 0
+          disconnected_from_nature: 0
+          discontented_with_surroundings: 0
+          short_sighted: 0
+          unreflective: 0
+        action_and_productivity:
+          procrastinating: 0
+          destructive: 0
+          neglectful: 0
+          burned_out: 0
+          ineffective: 0
+        financial_thoughts:
+          in_debt: 0
+          financially_stressed: 0
+          impoverished: 0
+          undervalued: 0
+      neutral_thoughts:
+        social_interactions:
+          acquainted: 0
+          professional: 0
+          formal: 0
+        environmental_perception:
+          neutral_perception_of_surroundings: 0
+        routine_and_maintenance:
+          performing_routine_tasks: 0
+          maintaining: 0
+    feeling_categories:
+      positive_feelings:
+        emotions:
+          happy: 0
+          content: 0
+          loving: 0
+          grateful: 0
+          excited: 0
+          joyful: 0
+          relieved: 0
+          ecstatic: 0
+          gratified: 0
+        physical_state:
+          energetic: 0
+          relaxed: 0
+          strong: 0
+          vital: 0
+          rejuvenated: 0
+          supple: 0
+        social_interactions:
+          friendly: 0
+          trusting: 0
+          companionable: 0
+          belonging: 0
+          affectionate: 0
+          included: 0
+          respected: 0
+        aspirations:
+          ambitious: 0
+          hopeful: 0
+          aspiring: 0
+          visionary: 0
+          purposeful: 0
+        basic_needs:
+          satisfied: 0
+          fulfilled: 0
+          comfortable: 0
+          nourished: 0
+          well_rested: 0
+        financial_feelings:
+          secure: 0
+          abundant: 0
+          wealthy: 0
+      negative_feelings:
+        emotions:
+          sad: 0
+          angry: 0
+          fearful: 0
+          disgusted: 0
+          jealous: 0
+          frustrated: 0
+          guilty: 0
+          grieving: 0
+          disappointed: 0
+          resentful: 0
+          ashamed: 0
+        physical_state:
+          fatigued: 0
+          in_pain: 0
+          uncomfortable: 0
+          stiff: 0
+          sluggish: 0
+        health_conditions:
+          sick: 0
+          nauseous: 0
+          dizzy: 0
+          headache: 0
+          lightheaded: 0
+          vertiginous: 0
+          disoriented: 0
+          blurred_vision: 0
+          acne: 0
+          tinnitus: 0
+          gingivitis: 0
+          erectile_dysfunction: 0
+          ibs: 0
+          anxious: 0
+          depressed: 0
+          bipolar: 0
+          socially_anxious: 0
+          insomniac: 0
+          gender_dysphoric: 0
+          narcissistic: 0
+        social_interactions:
+          lonely: 0
+          betrayed: 0
+          in_conflict: 0
+          isolated: 0
+          neglected: 0
+          ridiculed: 0
+        aspirations:
+          unambitious: 0
+          hopeless: 0
+          unaspiring: 0
+          unimaginative: 0
+          purposeless: 0
+        basic_needs:
+          hungry: 0
+          thirsty: 0
+          sleep_deprived: 0
+          urgent: 0
+          starving: 0
+          parched: 0
+        financial_feelings:
+          insecure: 0
+          scarce: 0
+          poor: 0
+      neutral_feelings:
+        emotions:
+          calm: 0
+          indifferent: 0
+          curious: 0
+          nostalgic: 0
+          bored: 0
+  opinions:
+    opinions: []
+  head:
+    skin:
+      hydration: 0
+      smoothness: 0
+      elasticity: 0
+      stretch_marks: 0
+    forehead:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+    front:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+        color:
+          roots: 
+          mids: 
+          ends: 
+    top:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+        color:
+          roots: 
+          mids: 
+          ends: 
+    back:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+        color:
+          roots: 
+          mids: 
+          ends: 
+    left_side:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+        color:
+          roots: 
+          mids: 
+          ends: 
+    right_side:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+        color:
+          roots: 
+          mids: 
+          ends: 
+    brain:
+      myelin: 37
+      plaque: 0
+      shape_regulation: 50
+      inflammation: 0
+      lining: 55
+      blood_amount: 50
+      cavity_pressure: 0
+      spinal_fluid_leak: 0
+      bruised: 0
+    left_eye:
+      lens_flexibility: 0
+      refraction: 0
+      bruised: 0
+      strain: 0
+      dryness: 0
+      discomfort: 0
+    right_eye:
+      lens_flexibility: 0
+      refraction: 0
+      bruised: 0
+      strain: 0
+      dryness: 0
+      discomfort: 0
+    nose:
+      inflammation: 0
+      bruised: 0
+      fractured: 0
+      cut: 0
+      hair_amount: 0
+      discomfort: 0
+    lips_top:
+      inflammation: 0
+      bruised: 0
+      cut: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+      discomfort: 0
+    lips_bottom:
+      inflammation: 0
+      bruised: 0
+      cut: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+      discomfort: 0
+    tongue:
+      inflammation: 0
+      bruised: 0
+      cut: 0
+    tonsils:
+      inflammation: 0
+      bruised: 0
+      cut: 0
+    teeth:
+      upper_right:
+        incisors:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        canine:
+          alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        premolars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        molars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        discomfort: 0
+      upper_left:
+        incisors:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        canine:
+          alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        premolars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        molars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        discomfort: 0
+      lower_right:
+        incisors:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        canine:
+          alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        premolars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        molars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        discomfort: 0
+      lower_left:
+        incisors:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        canine:
+          alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        premolars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        molars:
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        - alignment: 0
+          whiteness: 0
+          chipped: 0
+          missing: 0
+        discomfort: 0
+      overall_whiteness: 0
+      overall_alignment: 0
+      breath_freshness: 0
+      moisture: 0
+    cheekbone_left:
+      bruised: 0
+      fractured: 0
+      cut: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+      discomfort: 0
+    cheekbone_right:
+      bruised: 0
+      fractured: 0
+      cut: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+      discomfort: 0
+    jaw:
+      left:
+        bruised: 0
+        fractured: 0
+        cut: 0
+        hair:
+          amount: 0
+          style: 
+          messiness: 0
+        discomfort: 0
+      right:
+        bruised: 0
+        fractured: 0
+        cut: 0
+        hair:
+          amount: 0
+          style: 
+          messiness: 0
+        discomfort: 0
+      strength: 0
+    Chin:
+      chin:
+        bruised: 0
+        fractured: 0
+        cut: 0
+        hair:
+          amount: 0
+          style: 
+          messiness: 0
+        discomfort: 0
+      hair:
+        amount: 0
+        style: 
+        messiness: 0
+  neck:
+    skin:
+      hydration: 0
+      smoothness: 0
+      elasticity: 0
+      stretch_marks: 0
+    inflammation: 0
+    bruised: 0
+    fractured: 0
+    cut: 0
+    discomfort: 0
+    soreness: 0
+    muscle_mass: 0
+    fat: 0
+  torso:
+    skin:
+      hydration: 0
+      smoothness: 0
+      elasticity: 0
+      stretch_marks: 0
+    chest:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      soreness: 0
+      strength: 0
+      muscle_mass: 0
+      fat: 0
+      hair_amount: 0
+    upper_back:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      soreness: 0
+      strength: 0
+      muscle_mass: 0
+      fat: 0
+      hair_amount: 0
+    lower_back:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      soreness: 0
+      muscle_mass: 0
+      fat: 0
+    abdomen:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      soreness: 0
+      strength: 0
+      muscle_mass: 0
+      fat: 4
+      hair_amount: 0
+    ribs:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+    spine:
+      spinal_cord_lining: 0
+      fat_plaque: 0
+      cholesterol_plaque: 0
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+    left_collarbone:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+    right_collarbone:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      fractured: 0
+    flexibility: 0
+    stiffness: 85
+    fatigue: 0
+    strength: 0
+    muscle_mass: 0
+    fat: 0
+  internalOrgans:
+    heart:
+      blood_vessel: 0
+      blood_vessel_size: 0
+      blood_vessel_swelling: 0
+      heartbeat_regulation: 20
+      shape_regulation: 0
+      inflammation: 0
+      coronary_arteries_plaque: 0
+      connections:
+        brain: 0
+        lungs: 0
+        kidneys: 0
+        liver: 0
+        spine: 0
+        spleen: 0
+      leaky_valves: 0
+      hole_in_heart: 0
+      bruised: 0
+      discomfort: 0
+      strength: 33
+    left_lung:
+      mucus_amount: 0
+      airway_size: 0
+      inflammation: 0
+      air_sacks: 0
+      bruised: 0
+      hole: 0
+      discomfort: 0
+    right_lung:
+      mucus_amount: 0
+      airway_size: 0
+      inflammation: 0
+      air_sacks: 0
+      bruised: 0
+      hole: 0
+      discomfort: 0
+    liver:
+      fat_amount: 0
+      inflammation: 0
+      bruised: 0
+      discomfort: 0
+    left_kidney:
+      nephron_inflammation: 0
+      small_blood_vessels: 0
+      inflammation: 0
+      bruised: 0
+      discomfort: 0
+    right_kidney:
+      nephron_inflammation: 0
+      small_blood_vessels: 0
+      inflammation: 0
+      bruised: 0
+      discomfort: 0
+    spleen:
+      size: 0
+      inflammation: 0
+      bruised: 0
+      discomfort: 0
+    pancreas:
+      insulin_production_rate: 0
+      insulin_amount: 0
+      insulin_resistance: 0
+      inflammation: 0
+      bruised: 0
+      discomfort: 0
+    stomach:
+      metabolism: 43
+      lactose_intolerance: 0
+      inflammation: 0
+      bruised: 0
+      discomfort: 0
+  arms:
+    left:
+      skin:
+        hydration: 0
+        smoothness: 0
+        elasticity: 0
+        stretch_marks: 0
+      shoulder:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+        soreness: 0
+        hair_amount: 0
+      bicep:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+      elbow:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      forearm:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+        soreness: 0
+        hair_amount: 0
+      wrist:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      hand:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      fingers:
+        thumb:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        index:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        middle:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        ring:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        pinky:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+      flexibility: 0
+      stiffness: 85
+      fatigue: 85
+      strength: 0
+      muscle_mass: 0
+      fat: 0
+    right:
+      skin:
+        hydration: 0
+        smoothness: 0
+        elasticity: 0
+        stretch_marks: 0
+      shoulder:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+        soreness: 0
+        hair_amount: 0
+      bicep:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+      elbow:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      forearm:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+        soreness: 0
+        hair_amount: 0
+      wrist:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      hand:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      fingers:
+        thumb:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        index:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        middle:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        ring:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        pinky:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+      flexibility: 0
+      stiffness: 85
+      fatigue: 85
+      strength: 0
+      muscle_mass: 0
+      fat: 0
+  pelvisAndRepro:
+    hips:
+      bruised: 0
+      cut: 0
+      discomfort: 0
+      soreness: 0
+      flexibility: 0
+      fractured: 0
+    genitals:
+      rid: -2
+    buttocks:
+      left:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+      right:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+  legs:
+    left:
+      skin:
+        hydration: 0
+        smoothness: 0
+        elasticity: 0
+        stretch_marks: 0
+      thigh:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+        hair_amount: 0
+      knee:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      shin:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+        hair_amount: 0
+      ankle:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      foot:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+        fractured: 0
+        size: 0
+      toes:
+        big:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        index:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        middle:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        ring:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        pinky:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+      flexibility: 0
+      stiffness: 85
+      fatigue: 85
+      strength: 0
+      muscle_mass: 0
+      fat: 0
+    right:
+      skin:
+        hydration: 0
+        smoothness: 0
+        elasticity: 0
+        stretch_marks: 0
+      thigh:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+        hair_amount: 0
+      knee:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      shin:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+        hair_amount: 0
+      ankle:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        fractured: 0
+      foot:
+        bruised: 0
+        cut: 0
+        discomfort: 0
+        soreness: 0
+        fractured: 0
+        size: 0
+      toes:
+        big:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        index:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        middle:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        ring:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+        pinky:
+          bruised: 0
+          cut: 0
+          discomfort: 0
+          fractured: 0
+      flexibility: 0
+      stiffness: 85
+      fatigue: 85
+      strength: 0
+      muscle_mass: 0
+      fat: 0
+  id: 
+  character_type: 3
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+--- !u!114 &1054480431186720368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c5eec9ba8bd04cc3a31d63cbfd7508b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  catalog: {fileID: 11400000, guid: 70c512200e300448f8fd46b0b493480e, type: 2}
+  preferences: []
+  items: []
+  outfits: []
+--- !u!114 &-860244632691300756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 440474007830d4fa7a43b1d7c99838c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  speedRange: {x: 0.3, y: 1.7}
+  noiseFrequency: 2
+  turnDegreesPerSec: 360
+  edgeMargin: 0.5
+  groundRayTop: 10
+  animator: {fileID: 0}
+  isMovingBool: IsMoving
+  speedFloat: Speed
+  moveDurationRange: {x: 1, y: 40}
+  pauseDurationRange: {x: 5, y: 60}
+  startPaused: 0
+  externallyPaused: 0
+  frequencyJitter: {x: 0.9, y: 1.1}
+--- !u!143 &5624660200481644595
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 1.82
+  m_Radius: 0.49
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &7492740009622404211
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498488470551170827}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68125573540c0461eb6df43673ec8a7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  headAnchor: {fileID: 0}

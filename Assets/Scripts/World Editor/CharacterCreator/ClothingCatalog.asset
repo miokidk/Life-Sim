@@ -1,0 +1,435 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c161c3d8e5b14c97955d264f0ef7a2b, type: 3}
+  m_Name: ClothingCatalog
+  m_EditorClassIdentifier: 
+  types:
+  - id: crew_tee
+    label: Crew Tee
+    category: 0
+  - id: vneck_tee
+    label: V-Neck Tee
+    category: 0
+  - id: henley_ss
+    label: Short-Sleeve Henley
+    category: 0
+  - id: polo_ss
+    label: Short-Sleeve Polo
+    category: 0
+  - id: buttonup_ss
+    label: Short-Sleeve Button-Up
+    category: 0
+  - id: camp_collar
+    label: Camp/Cuban Collar Shirt
+    category: 0
+  - id: rugby_ss
+    label: Short-Sleeve Rugby
+    category: 0
+  - id: jersey_athletic_ss
+    label: Athletic Jersey/Tee
+    category: 0
+  - id: mesh_tee
+    label: Mesh Tee
+    category: 0
+  - id: graphic_tee
+    label: Graphic Tee
+    category: 0
+  - id: crop_tee
+    label: Crop Tee
+    category: 0
+  - id: work_shirt_ss
+    label: Work Shirt (SS)
+    category: 0
+  - id: ls_tee
+    label: Long-Sleeve Tee
+    category: 1
+  - id: henley_ls
+    label: Long-Sleeve Henley
+    category: 1
+  - id: oxford_buttonup
+    label: Oxford/Button-Up
+    category: 1
+  - id: flannel
+    label: Flannel
+    category: 1
+  - id: denim_shirt
+    label: Denim/Chambray Shirt
+    category: 1
+  - id: rugby_ls
+    label: Long-Sleeve Rugby
+    category: 1
+  - id: turtleneck
+    label: Turtleneck/Mock Neck
+    category: 1
+  - id: thermal_waffle
+    label: Thermal/Waffle Shirt
+    category: 1
+  - id: polo_ls
+    label: Long-Sleeve Polo
+    category: 1
+  - id: work_shirt_ls
+    label: Work Shirt (LS)
+    category: 1
+  - id: jeans
+    label: Jeans
+    category: 2
+  - id: chinos
+    label: Chinos
+    category: 2
+  - id: trousers
+    label: Trousers/Dress Pants
+    category: 2
+  - id: cargo_pants
+    label: Cargo Pants
+    category: 2
+  - id: utility_work_pants
+    label: Utility/Work Pants
+    category: 2
+  - id: joggers
+    label: Joggers
+    category: 2
+  - id: sweatpants
+    label: Sweatpants
+    category: 2
+  - id: track_pants
+    label: Track Pants
+    category: 2
+  - id: leggings
+    label: Leggings
+    category: 2
+  - id: yoga_pants
+    label: Yoga Pants
+    category: 2
+  - id: denim_shorts
+    label: Denim Shorts
+    category: 2
+  - id: chino_shorts
+    label: Chino Shorts
+    category: 2
+  - id: athletic_shorts
+    label: Athletic Shorts
+    category: 2
+  - id: cargo_shorts
+    label: Cargo Shorts
+    category: 2
+  - id: biker_shorts
+    label: Biker Shorts
+    category: 2
+  - id: skirt_pencil
+    label: "Skirt \u2014 Pencil"
+    category: 2
+  - id: skirt_pleated
+    label: "Skirt \u2014 Pleated"
+    category: 2
+  - id: skirt_a_line_midi
+    label: "Skirt \u2014 A-Line/Midi"
+    category: 2
+  - id: skirt_mini
+    label: "Skirt \u2014 Mini"
+    category: 2
+  - id: skirt_maxi
+    label: "Skirt \u2014 Maxi"
+    category: 2
+  - id: skort
+    label: Skort
+    category: 2
+  - id: overalls
+    label: Overalls/Dungarees
+    category: 2
+  - id: culottes
+    label: Culottes/Gauchos
+    category: 2
+  - id: hoodie_pullover
+    label: Hoodie (Pullover)
+    category: 3
+  - id: hoodie_zip
+    label: Hoodie (Zip)
+    category: 3
+  - id: sweatshirt_crew
+    label: Sweatshirt (Crewneck)
+    category: 3
+  - id: cardigan
+    label: Cardigan
+    category: 3
+  - id: knit_sweater
+    label: Knit Sweater
+    category: 3
+  - id: denim_jacket
+    label: Denim Jacket
+    category: 3
+  - id: leather_jacket
+    label: Leather Jacket
+    category: 3
+  - id: bomber
+    label: Bomber/Varsity
+    category: 3
+  - id: shacket
+    label: Shirt Jacket (Shacket)
+    category: 3
+  - id: windbreaker
+    label: Windbreaker
+    category: 3
+  - id: raincoat
+    label: Raincoat
+    category: 3
+  - id: trench
+    label: Trench Coat
+    category: 3
+  - id: overcoat
+    label: Overcoat/Wool Coat
+    category: 3
+  - id: puffer
+    label: Puffer Jacket/Coat
+    category: 3
+  - id: parka
+    label: Parka
+    category: 3
+  - id: blazer
+    label: Blazer/Sport Coat
+    category: 3
+  - id: suit_jacket
+    label: Suit Jacket
+    category: 3
+  - id: vest_insulated
+    label: Vest (Puffer/Insulated)
+    category: 3
+  - id: utility_vest
+    label: Utility Vest
+    category: 3
+  - id: poncho_cape
+    label: Poncho/Cape
+    category: 3
+  - id: fleece
+    label: Fleece
+    category: 3
+  - id: no_show
+    label: No-Show
+    category: 4
+  - id: ankle
+    label: Ankle
+    category: 4
+  - id: quarter
+    label: Quarter
+    category: 4
+  - id: crew
+    label: Crew
+    category: 4
+  - id: boot
+    label: Boot/Mid-Calf
+    category: 4
+  - id: knee_high
+    label: Knee-High
+    category: 4
+  - id: thigh_high
+    label: Thigh-High
+    category: 4
+  - id: dress_thin
+    label: Dress/Thin
+    category: 4
+  - id: athletic_cushioned
+    label: Athletic/Cushioned
+    category: 4
+  - id: compression
+    label: Compression
+    category: 4
+  - id: thermal_wool
+    label: Thermal/Wool
+    category: 4
+  - id: toe_socks
+    label: Toe Socks
+    category: 4
+  - id: briefs
+    label: Briefs
+    category: 5
+  - id: boxers
+    label: Boxers
+    category: 5
+  - id: boxer_briefs
+    label: Boxer Briefs
+    category: 5
+  - id: trunks
+    label: Trunks
+    category: 5
+  - id: long_johns
+    label: Long Johns/Thermal Bottoms
+    category: 5
+  - id: undershirt_tee
+    label: Undershirt (Tee)
+    category: 5
+  - id: undershirt_tank
+    label: Undershirt (Tank)
+    category: 5
+  - id: camisole
+    label: Camisole
+    category: 5
+  - id: bralette
+    label: Bralette
+    category: 5
+  - id: sports_bra
+    label: Sports Bra
+    category: 5
+  - id: bikini_brief
+    label: Bikini Brief
+    category: 5
+  - id: hipster
+    label: Hipster
+    category: 5
+  - id: thong
+    label: Thong
+    category: 5
+  - id: boyshort
+    label: Boyshort
+    category: 5
+  - id: slip
+    label: Slip
+    category: 5
+  - id: slip_shorts
+    label: Slip Shorts
+    category: 5
+  - id: shapewear_top
+    label: Shapewear (Top)
+    category: 5
+  - id: shapewear_bottom
+    label: Shapewear (Bottom)
+    category: 5
+  - id: tights_hosiery
+    label: Tights/Hosiery
+    category: 5
+  - id: sneakers_casual
+    label: Sneakers (Casual)
+    category: 6
+  - id: running_shoes
+    label: Running Shoes
+    category: 6
+  - id: training_basketball
+    label: Training/Basketball
+    category: 6
+  - id: skate_shoes
+    label: Skate Shoes
+    category: 6
+  - id: hiking_shoes
+    label: Hiking Shoes/Boots
+    category: 6
+  - id: work_boots
+    label: Work/Combat Boots
+    category: 6
+  - id: chelsea_boots
+    label: Chelsea Boots
+    category: 6
+  - id: chukka_boots
+    label: Chukka/Desert Boots
+    category: 6
+  - id: oxfords
+    label: Oxfords
+    category: 6
+  - id: derby
+    label: Derby
+    category: 6
+  - id: loafers
+    label: Loafers
+    category: 6
+  - id: boat_shoes
+    label: Boat Shoes
+    category: 6
+  - id: flats_ballet
+    label: Flats/Ballet
+    category: 6
+  - id: mary_janes
+    label: Mary Janes
+    category: 6
+  - id: heels_pumps
+    label: Heels/Pumps
+    category: 6
+  - id: wedges
+    label: Wedges
+    category: 6
+  - id: mules_clogs
+    label: Mules/Clogs
+    category: 6
+  - id: sandals_slides
+    label: Sandals/Slides
+    category: 6
+  - id: flip_flops
+    label: Flip-Flops
+    category: 6
+  - id: sport_sandals
+    label: Sport Sandals
+    category: 6
+  - id: slippers
+    label: Slippers
+    category: 6
+  - id: rain_boots
+    label: Rain Boots/Wellies
+    category: 6
+  - id: cleats
+    label: Cleats (Sport)
+    category: 6
+  - id: baseball_cap
+    label: Baseball Cap
+    category: 7
+  - id: dad_cap
+    label: Dad Cap
+    category: 7
+  - id: snapback_fitted
+    label: Snapback/Fitted
+    category: 7
+  - id: trucker_cap
+    label: Trucker Cap
+    category: 7
+  - id: beanie
+    label: Beanie/Knit Cap
+    category: 7
+  - id: bucket_hat
+    label: Bucket Hat
+    category: 7
+  - id: wide_brim
+    label: Wide-Brim (Felt/Straw)
+    category: 7
+  - id: fedora_panama
+    label: Fedora/Panama
+    category: 7
+  - id: beret
+    label: Beret
+    category: 7
+  - id: visor
+    label: Visor
+    category: 7
+  - id: headband
+    label: Headband
+    category: 7
+  - id: durag
+    label: Durag
+    category: 7
+  - id: bonnet
+    label: Bonnet (Sleep)
+    category: 7
+  - id: tam_loc_cap
+    label: Tam/Loc Cap
+    category: 7
+  - id: headwrap_turban
+    label: Headwrap/Turban
+    category: 7
+  - id: headscarf_hijab
+    label: Headscarf/Hijab
+    category: 7
+  - id: bandana
+    label: Bandana
+    category: 7
+  - id: earmuffs
+    label: Earmuffs
+    category: 7
+  - id: balaclava
+    label: Balaclava
+    category: 7
+  - id: bike_helmet
+    label: Bike Helmet
+    category: 7
