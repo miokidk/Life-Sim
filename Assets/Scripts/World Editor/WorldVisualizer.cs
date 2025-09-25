@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
@@ -47,7 +46,7 @@ public class WorldVisualizer : MonoBehaviour
     private static readonly int MainTex = Shader.PropertyToID("_MainTex");
 
     [Header("Intersection & Crosswalks")]
-    [SerializeField] private bool drawIntersections = true;   // <-- was missing
+    [SerializeField] private bool drawIntersections = false;
     [SerializeField] private bool drawCrosswalks = true;
     [SerializeField, Min(0f)] private float crosswalkBandFeet = 8f;   // depth of zebra band along road
     [SerializeField, Min(0f)] private float crosswalkStripeFeet = 2f;
@@ -75,6 +74,20 @@ public class WorldVisualizer : MonoBehaviour
     [SerializeField] private bool drawLots = false;
     [SerializeField] private Color lotColor = new Color(0f, 1f, 0.1f, 0.9f);
 
+    private struct CornerPoints
+    {
+        public Vector2 curbLeft;
+        public Vector2 curbRight;
+        public Vector2 outerLeft;
+        public Vector2 outerRight;
+        public bool hasLeft;
+        public bool hasRight;
+        public bool isInterior;
+    }
+
+    private readonly Dictionary<(int index, bool isStart), CornerPoints> _cornerCache = new();
+    private bool _cornerCacheDirty = true;
+
     private void Update()
     {
         if (_saveToVisualize == null) return;
@@ -84,15 +97,20 @@ public class WorldVisualizer : MonoBehaviour
         {
             foreach (var inter in _saveToVisualize.layout.intersections)
             {
-                var pts = inter.points;
-                if (pts == null || pts.Count < 3) continue;
-                for (int i = 0; i < pts.Count; i++)
+                if (drawIntersections)
                 {
-                    var p0 = pts[i];
-                    var p1 = pts[(i + 1) % pts.Count];
-                    var a = new Vector3(p0.x, parkYOffset + markingLift, p0.y);
-                    var b = new Vector3(p1.x, parkYOffset + markingLift, p1.y);
-                    Debug.DrawLine(a, b, intersectionOutline);
+                    var pts = inter.points;
+                    if (pts != null && pts.Count >= 3)
+                    {
+                        for (int i = 0; i < pts.Count; i++)
+                        {
+                            var p0 = pts[i];
+                            var p1 = pts[(i + 1) % pts.Count];
+                            var a = new Vector3(p0.x, parkYOffset + markingLift, p0.y);
+                            var b = new Vector3(p1.x, parkYOffset + markingLift, p1.y);
+                            Debug.DrawLine(a, b, intersectionOutline);
+                        }
+                    }
                 }
 
                 // Crosswalks (re-draw every frame)
@@ -111,8 +129,14 @@ public class WorldVisualizer : MonoBehaviour
             float gapU  = Size.Feet(gapFeet);
             float sidewalkU = Size.Feet(sidewalkFeet);
 
-            foreach (var road in _saveToVisualize.roadNetwork)
+            Dictionary<(int index, bool isStart), CornerPoints> cornerMap = null;
+            if (drawSidewalks)
+                cornerMap = EnsureCornerMap();
+
+            var roads = _saveToVisualize.roadNetwork;
+            for (int roadIndex = 0; roadIndex < roads.Count; roadIndex++)
             {
+                var road = roads[roadIndex];
                 Vector3 a = new Vector3(road.start.x, parkYOffset + markingLift, road.start.y);
                 Vector3 b = new Vector3(road.end.x,   parkYOffset + markingLift, road.end.y);
 
@@ -142,10 +166,30 @@ public class WorldVisualizer : MonoBehaviour
                     float halfRoad = road.width * 0.5f;
                     Vector3 curbOff = perp * halfRoad;
                     Vector3 sideOff = perp * (halfRoad + sidewalkU);
-                    Debug.DrawLine(a + curbOff + Vector3.up * edgeLift, b + curbOff + Vector3.up * edgeLift, curbEdgeColor);
-                    Debug.DrawLine(a - curbOff + Vector3.up * edgeLift, b - curbOff + Vector3.up * edgeLift, curbEdgeColor);
-                    Debug.DrawLine(a + sideOff + Vector3.up * edgeLift, b + sideOff + Vector3.up * edgeLift, sidewalkEdgeColor);
-                    Debug.DrawLine(a - sideOff + Vector3.up * edgeLift, b - sideOff + Vector3.up * edgeLift, sidewalkEdgeColor);
+                    Vector3 lift = Vector3.up * edgeLift;
+
+                    Vector3 aCurbL = a + curbOff + lift;
+                    Vector3 aCurbR = a - curbOff + lift;
+                    Vector3 bCurbL = b + curbOff + lift;
+                    Vector3 bCurbR = b - curbOff + lift;
+
+                    Vector3 aSideL = a + sideOff + lift;
+                    Vector3 aSideR = a - sideOff + lift;
+                    Vector3 bSideL = b + sideOff + lift;
+                    Vector3 bSideR = b - sideOff + lift;
+
+                    CornerPoints startCorners = default;
+                    CornerPoints endCorners = default;
+                    bool hasStartCorners = cornerMap != null && OverrideCorner(cornerMap, roadIndex, true, ref aCurbL, ref aCurbR, ref aSideL, ref aSideR, out startCorners);
+                    bool hasEndCorners   = cornerMap != null && OverrideCorner(cornerMap, roadIndex, false, ref bCurbL, ref bCurbR, ref bSideL, ref bSideR, out endCorners);
+
+                    if (hasStartCorners && hasEndCorners && startCorners.isInterior && endCorners.isInterior)
+                        continue;
+
+                    Debug.DrawLine(aCurbL, bCurbL, curbEdgeColor);
+                    Debug.DrawLine(aCurbR, bCurbR, curbEdgeColor);
+                    Debug.DrawLine(aSideL, bSideL, sidewalkEdgeColor);
+                    Debug.DrawLine(aSideR, bSideR, sidewalkEdgeColor);
                 }
             }
         }
@@ -153,7 +197,11 @@ public class WorldVisualizer : MonoBehaviour
 
     // Cache the save so we can redraw debug lines every frame
     private WorldSave _saveToVisualize;
-    public  void     SetLiveSave(WorldSave save) { _saveToVisualize = save; }
+    public  void     SetLiveSave(WorldSave save)
+    {
+        _saveToVisualize = save;
+        _cornerCacheDirty = true;
+    }
 
     // ===== Background planes (world + park) =====
     private Transform _worldContainer;
@@ -220,7 +268,7 @@ public class WorldVisualizer : MonoBehaviour
     #region Entry Points
     public void VisualizeWorldLayout(WorldSave save)
     {
-        _saveToVisualize = save;
+        SetLiveSave(save);
         StartCoroutine(VisualizeWorldLayoutAsync(save, null, null));
     }
 
@@ -233,7 +281,7 @@ public class WorldVisualizer : MonoBehaviour
         System.Action<string> onStatus = null)
     {
         if (save == null) yield break;
-        _saveToVisualize = save; 
+        SetLiveSave(save); 
 
         BuildBackgroundPlanes(save);
 
@@ -330,9 +378,15 @@ public class WorldVisualizer : MonoBehaviour
     {
         float sidewalkU = Size.Feet(sidewalkFeet);
 
+        Dictionary<(int index, bool isStart), CornerPoints> cornerMap = null;
+        if (drawSidewalks)
+            cornerMap = EnsureCornerMap();
+
         int i = 0;
-        foreach (var road in save.roadNetwork)
+        var roads = save.roadNetwork;
+        for (int roadIndex = 0; roadIndex < roads.Count; roadIndex++)
         {
+            var road = roads[roadIndex];
             Vector3 a = new Vector3(road.start.x, parkYOffset, road.start.y);
             Vector3 b = new Vector3(road.end.x, parkYOffset, road.end.y);
 
@@ -347,13 +401,32 @@ public class WorldVisualizer : MonoBehaviour
             Vector3 curbOff = perp * halfRoad;
             Vector3 sideOff = perp * (halfRoad + sidewalkU);
 
+            Vector3 lift = Vector3.up * edgeLift;
+            Vector3 aCurbL = a + curbOff + lift;
+            Vector3 aCurbR = a - curbOff + lift;
+            Vector3 bCurbL = b + curbOff + lift;
+            Vector3 bCurbR = b - curbOff + lift;
+
+            Vector3 aSideL = a + sideOff + lift;
+            Vector3 aSideR = a - sideOff + lift;
+            Vector3 bSideL = b + sideOff + lift;
+            Vector3 bSideR = b - sideOff + lift;
+
+            CornerPoints startCorners = default;
+            CornerPoints endCorners = default;
+            bool hasStartCorners = cornerMap != null && OverrideCorner(cornerMap, roadIndex, true, ref aCurbL, ref aCurbR, ref aSideL, ref aSideR, out startCorners);
+            bool hasEndCorners   = cornerMap != null && OverrideCorner(cornerMap, roadIndex, false, ref bCurbL, ref bCurbR, ref bSideL, ref bSideR, out endCorners);
+
+            if (hasStartCorners && hasEndCorners && startCorners.isInterior && endCorners.isInterior)
+                continue;
+
             // curbs
-            Debug.DrawLine(a + curbOff + Vector3.up * edgeLift, b + curbOff + Vector3.up * edgeLift, curbEdgeColor);
-            Debug.DrawLine(a - curbOff + Vector3.up * edgeLift, b - curbOff + Vector3.up * edgeLift, curbEdgeColor);
+            Debug.DrawLine(aCurbL, bCurbL, curbEdgeColor);
+            Debug.DrawLine(aCurbR, bCurbR, curbEdgeColor);
 
             // sidewalk outer edges
-            Debug.DrawLine(a + sideOff + Vector3.up * edgeLift, b + sideOff + Vector3.up * edgeLift, sidewalkEdgeColor);
-            Debug.DrawLine(a - sideOff + Vector3.up * edgeLift, b - sideOff + Vector3.up * edgeLift, sidewalkEdgeColor);
+            Debug.DrawLine(aSideL, bSideL, sidewalkEdgeColor);
+            Debug.DrawLine(aSideR, bSideR, sidewalkEdgeColor);
 
             if ((++i % 24) == 0) yield return null;
         }
@@ -468,6 +541,226 @@ public class WorldVisualizer : MonoBehaviour
         Debug.DrawLine(p2, p3, color);
         Debug.DrawLine(p3, p4, color);
         Debug.DrawLine(p4, p1, color);
+    }
+    #endregion
+
+    #region Sidewalk Corner Helpers
+    private Dictionary<(int index, bool isStart), CornerPoints> EnsureCornerMap()
+    {
+        if (!_cornerCacheDirty)
+            return _cornerCache;
+
+        _cornerCache.Clear();
+        if (_saveToVisualize?.roadNetwork == null) { _cornerCacheDirty = false; return _cornerCache; }
+        if (_saveToVisualize.layout?.intersections == null) { _cornerCacheDirty = false; return _cornerCache; }
+
+        var roads = _saveToVisualize.roadNetwork;
+        var intersections = _saveToVisualize.layout.intersections;
+        float sidewalkU = Size.Feet(sidewalkFeet);
+        float midpointEpsSq = Size.Feet(0.25f) * Size.Feet(0.25f);
+        float connectorMatchSq = Size.Feet(10f) * Size.Feet(10f);
+        float interiorThresholdSq = Size.Feet(1f) * Size.Feet(1f);
+
+        for (int interIndex = 0; interIndex < intersections.Count; interIndex++)
+        {
+            var inter = intersections[interIndex];
+            var pts = inter.points;
+            var connectors = inter.connectors;
+            if (pts == null || connectors == null || pts.Count == 0) continue;
+
+            int vertexCount = pts.Count;
+            var outerCorners = PrecomputeOuterCorners(pts, sidewalkU);
+            foreach (var connector in connectors)
+            {
+                int indexA = -1;
+                Vector2 cornerA = default;
+                Vector2 cornerB = default;
+                bool foundCorners = false;
+
+                for (int v = 0; v < vertexCount; v++)
+                {
+                    Vector2 v0 = pts[v];
+                    Vector2 v1 = pts[(v + 1) % vertexCount];
+                    Vector2 mid = (v0 + v1) * 0.5f;
+                    if ((mid - connector.point).sqrMagnitude <= midpointEpsSq)
+                    {
+                        indexA = v;
+                        cornerA = v0;
+                        cornerB = v1;
+                        foundCorners = true;
+                        break;
+                    }
+                }
+
+                if (!foundCorners) continue;
+
+                int indexB = (indexA + 1) % vertexCount;
+
+                int bestRoad = -1;
+                bool bestIsStart = true;
+                float bestDistSq = float.MaxValue;
+
+                for (int r = 0; r < roads.Count; r++)
+                {
+                    var road = roads[r];
+                    float dStart = (road.start - connector.point).sqrMagnitude;
+                    if (dStart < bestDistSq && dStart <= connectorMatchSq)
+                    {
+                        bestDistSq = dStart;
+                        bestRoad = r;
+                        bestIsStart = true;
+                    }
+
+                    float dEnd = (road.end - connector.point).sqrMagnitude;
+                    if (dEnd < bestDistSq && dEnd <= connectorMatchSq)
+                    {
+                        bestDistSq = dEnd;
+                        bestRoad = r;
+                        bestIsStart = false;
+                    }
+                }
+
+                if (bestRoad < 0) continue;
+
+                var seg = roads[bestRoad];
+                Vector2 endpoint = bestIsStart ? seg.start : seg.end;
+                Vector2 dir = seg.end - seg.start;
+                if (dir.sqrMagnitude < 1e-6f) continue;
+                dir.Normalize();
+                Vector2 perp = new Vector2(-dir.y, dir.x);
+
+                float dotA = Vector2.Dot(cornerA - endpoint, perp);
+                float dotB = Vector2.Dot(cornerB - endpoint, perp);
+
+                bool useAAsLeft = dotA >= dotB;
+                Vector2 innerLeft = useAAsLeft ? cornerA : cornerB;
+                Vector2 innerRight = useAAsLeft ? cornerB : cornerA;
+                Vector2 outerLeft = useAAsLeft ? outerCorners[indexA] : outerCorners[indexB];
+                Vector2 outerRight = useAAsLeft ? outerCorners[indexB] : outerCorners[indexA];
+
+                var key = (bestRoad, bestIsStart);
+                var cp = _cornerCache.TryGetValue(key, out var existing) ? existing : default;
+                cp.curbLeft = innerLeft;
+                cp.curbRight = innerRight;
+                cp.outerLeft = outerLeft;
+                cp.outerRight = outerRight;
+                cp.hasLeft = true;
+                cp.hasRight = true;
+                cp.isInterior = bestDistSq <= interiorThresholdSq;
+                _cornerCache[key] = cp;
+            }
+        }
+
+        _cornerCacheDirty = false;
+        return _cornerCache;
+    }
+
+    private static Vector2[] PrecomputeOuterCorners(List<Vector2> pts, float sidewalkU)
+    {
+        int n = pts.Count;
+        var result = new Vector2[n];
+        if (n < 3 || sidewalkU <= 1e-4f)
+        {
+            for (int i = 0; i < n; i++) result[i] = pts[i];
+            return result;
+        }
+
+        float area = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            Vector2 p0 = pts[i];
+            Vector2 p1 = pts[(i + 1) % n];
+            area += (p0.x * p1.y - p1.x * p0.y);
+        }
+        bool isCCW = area > 0f;
+
+        var normals = new Vector2[n];
+        var ds = new float[n];
+
+        for (int i = 0; i < n; i++)
+        {
+            Vector2 a = pts[i];
+            Vector2 b = pts[(i + 1) % n];
+            Vector2 edge = b - a;
+            if (edge.sqrMagnitude < 1e-10f)
+            {
+                normals[i] = Vector2.zero;
+                ds[i] = 0f;
+                continue;
+            }
+
+            Vector2 nrm = isCCW ? new Vector2(edge.y, -edge.x) : new Vector2(-edge.y, edge.x);
+            nrm.Normalize();
+            normals[i] = nrm;
+            ds[i] = Vector2.Dot(nrm, a) + sidewalkU;
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            var nPrev = normals[(i - 1 + n) % n];
+            var nCurr = normals[i];
+            float dPrev = ds[(i - 1 + n) % n];
+            float dCurr = ds[i];
+
+            if (nPrev == Vector2.zero || nCurr == Vector2.zero)
+            {
+                Vector2 fallback = nPrev != Vector2.zero ? nPrev : nCurr;
+                if (fallback == Vector2.zero) fallback = Vector2.up;
+                fallback.Normalize();
+                result[i] = pts[i] + fallback * sidewalkU;
+                continue;
+            }
+
+            float det = nPrev.x * nCurr.y - nPrev.y * nCurr.x;
+            if (Mathf.Abs(det) < 1e-6f)
+            {
+                // nearly parallel — fall back to simple offset along average normal
+                Vector2 avg = nPrev + nCurr;
+                if (avg.sqrMagnitude < 1e-8f)
+                    avg = nCurr != Vector2.zero ? nCurr : nPrev;
+                avg.Normalize();
+                result[i] = pts[i] + avg * sidewalkU;
+                continue;
+            }
+
+            float x = (dPrev * nCurr.y - nPrev.y * dCurr) / det;
+            float y = (nPrev.x * dCurr - dPrev * nCurr.x) / det;
+            result[i] = new Vector2(x, y);
+        }
+
+        return result;
+    }
+
+    private static bool OverrideCorner(
+        Dictionary<(int index, bool isStart), CornerPoints> cornerMap,
+        int roadIndex,
+        bool isStart,
+        ref Vector3 curbLeft,
+        ref Vector3 curbRight,
+        ref Vector3 sideLeft,
+        ref Vector3 sideRight,
+        out CornerPoints corners)
+    {
+        if (!cornerMap.TryGetValue((roadIndex, isStart), out corners))
+            return false;
+
+        if (corners.hasLeft)
+        {
+            var curbWorld = new Vector3(corners.curbLeft.x, curbLeft.y, corners.curbLeft.y);
+            var outerWorld = new Vector3(corners.outerLeft.x, sideLeft.y, corners.outerLeft.y);
+            curbLeft = curbWorld;
+            sideLeft = outerWorld;
+        }
+
+        if (corners.hasRight)
+        {
+            var curbWorld = new Vector3(corners.curbRight.x, curbRight.y, corners.curbRight.y);
+            var outerWorld = new Vector3(corners.outerRight.x, sideRight.y, corners.outerRight.y);
+            curbRight = curbWorld;
+            sideRight = outerWorld;
+        }
+
+        return true;
     }
     #endregion
     
