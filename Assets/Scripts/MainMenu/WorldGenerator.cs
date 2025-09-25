@@ -135,47 +135,6 @@ public static class WorldGenerator
                 if ((i & 31) == 0) { yield return null; } var s = all[i]; Vector2 a = s.a; Vector2 b = s.b; float segmentLength = (a - b).magnitude; if (segmentLength < 1f) continue; float da = DistToRectEdge(R, a); float db = DistToRectEdge(R, b); bool aIsOuter = da <= frayDetectRadius && da < db; bool bIsOuter = db <= frayDetectRadius && db < da; if (da <= frayDetectRadius && db <= frayDetectRadius) { float pullBackRatio = Random.Range(0.3f, 0.6f); s.a = Vector2.Lerp(a, b, pullBackRatio); s.b = Vector2.Lerp(b, a, pullBackRatio); all[i] = s; continue; } if (aIsOuter) { Vector2 dir = (a - b).normalized; float minLen = -(segmentLength * 0.95f); float len = Random.Range(Mathf.Max(frayLengthRange.x, minLen), frayLengthRange.y); s.a = a + dir * len; all[i] = s; } else if (bIsOuter) { Vector2 dir = (b - a).normalized; float minLen = -(segmentLength * 0.95f); float len = Random.Range(Mathf.Max(frayLengthRange.x, minLen), frayLengthRange.y); s.b = b + dir * len; all[i] = s; } }
         #endregion
 
-        static List<Vector2> InsetConvexPolygonBySides(List<Vector2> poly, Vector2 center, float inset)
-        {
-            int n = poly.Count;
-            var vis = new List<Vector2>(n);
-
-            // Build offset lines for each side
-            var offsP = new Vector2[n];
-            var offsD = new Vector2[n];
-
-            for (int i = 0; i < n; i++)
-            {
-                Vector2 a = poly[i];
-                Vector2 b = poly[(i + 1) % n];
-                Vector2 d = b - a;
-                if (d.sqrMagnitude < 1e-8f) { d = new Vector2(1,0); }
-
-                // inward normal (toward center)
-                Vector2 nrm = new(-d.y, d.x);
-                nrm.Normalize();
-                // ensure it's pointing inward
-                Vector2 mid = (a + b) * 0.5f;
-                if (Vector2.Dot(nrm, center - mid) < 0f) nrm = -nrm;
-
-                offsP[i] = a + nrm * inset;      // a shifted inward
-                offsD[i] = d;                    // same direction as side
-            }
-
-            // Intersect consecutive offset lines to get inset vertices
-            for (int i = 0; i < n; i++)
-            {
-                int j = (i + 1) % n;
-                if (LineLineIntersection(offsP[i], offsD[i], offsP[j], offsD[j], out var v))
-                    vis.Add(v);
-                else
-                    vis.Add((poly[j] + poly[i]) * 0.5f); // degenerate fallback
-            }
-
-            return vis;
-        }
-
-        
         // ---------- Generate Intersections and Trim Roads ----------
         stat("Building roads & intersections…");
         yield return null;
@@ -385,7 +344,39 @@ public static class WorldGenerator
         static bool SegmentsIntersect(Vector2 p1, Vector2 q1, Vector2 p2, Vector2 q2, float epsilon = 1e-5f) { Vector2 r = q1 - p1; Vector2 s = q2 - p2; float rxs = Cross(r, s); Vector2 qp = p2 - p1; if (Mathf.Abs(rxs) < epsilon) { return false; } float t = Cross(qp, s) / rxs; float u = Cross(qp, r) / rxs; return (t > epsilon && t < 1.0f - epsilon && u > epsilon && u < 1.0f - epsilon); }
         static Vector2 ProjectPointOnSegment(Vector2 p, Vector2 a, Vector2 b, out float t01) { Vector2 ab = b - a; float ab2 = Vector2.Dot(ab, ab); if (ab2 <= 1e-6f) { t01 = 0f; return a; } t01 = Mathf.Clamp01(Vector2.Dot(p - a, ab) / ab2); return a + ab * t01; }
         static bool SegmentAABBClip(Rect r, Vector2 a, Vector2 b, out Vector2 ca, out Vector2 cb) { float u1 = 0f, u2 = 1f; float dx = b.x - a.x, dy = b.y - a.y; bool Clip(float P, float Q) { if (Mathf.Abs(P) < 1e-8f) return Q >= 0f; float t = Q / P; if (P < 0) { if (t > u2) return false; if (t > u1) u1 = t; } else { if (t < u1) return false; if (t < u2) u2 = t; } return true; } if (!Clip(-dx, a.x - r.xMin)) { ca = cb = Vector2.zero; return false; } if (!Clip(dx, r.xMax - a.x)) { ca = cb = Vector2.zero; return false; } if (!Clip(-dy, a.y - r.yMin)) { ca = cb = Vector2.zero; return false; } if (!Clip(dy, r.yMax - a.y)) { ca = cb = Vector2.zero; return false; } ca = new Vector2(a.x + u1 * dx, a.y + u1 * dy); cb = new Vector2(a.x + u2 * dx, a.y + u2 * dy); return (cb - ca).sqrMagnitude > 0.01f; }
-        static ulong EdgeKey(Vector2 a, Vector2 b, RoadType type) { int qx(float v) => Mathf.RoundToInt(v * 10f); int qy(float v) => Mathf.RoundToInt(v * 10f); Vector2 p0 = a, p1 = b; if (p1.x < p0.x || (Mathf.Approximately(p1.x, p0.x) && p1.y < p0.y)) { var t = p0; p0 = p1; p1 = t; } int ax = qx(p0.x), ay = qy(p0.y), bx = qx(p1.x), by = qy(p1.y); int tt = (int)type & 3; unchecked { ulong k = 0; k |= (ulong)(ax & 0xFFFF) << 48; k |= (ulong)(ay & 0xFFFF) << 32; k |= (ulong)(bx & 0xFFFF) << 16; k |= (ulong)(by & 0xFFFF); k ^= (ulong)tt << 8; return k; } }
+        static ulong EdgeKey(Vector2 a, Vector2 b, RoadType type)
+        {
+            int qx(float v) => Mathf.RoundToInt(v * 10f);
+            int qy(float v) => Mathf.RoundToInt(v * 10f);
+
+            Vector2 p0 = a, p1 = b;
+            if (p1.x < p0.x || (Mathf.Approximately(p1.x, p0.x) && p1.y < p0.y))
+            {
+                var t = p0;
+                p0 = p1;
+                p1 = t;
+            }
+
+            int ax = qx(p0.x), ay = qy(p0.y), bx = qx(p1.x), by = qy(p1.y);
+
+            // Store quantised coordinates in 16-bit buckets to build a stable key.
+            ushort ax16 = unchecked((ushort)ax);
+            ushort ay16 = unchecked((ushort)ay);
+            ushort bx16 = unchecked((ushort)bx);
+            ushort by16 = unchecked((ushort)by);
+            byte typeBits = (byte)(((int)type) & 0x03);
+
+            unchecked
+            {
+                ulong key = 0;
+                key |= ((ulong)ax16) << 48;
+                key |= ((ulong)ay16) << 32;
+                key |= ((ulong)bx16) << 16;
+                key |= ((ulong)by16);
+                key ^= ((ulong)typeBits) << 8;
+                return key;
+            }
+        }
     }
 
     // ---------- data ----------
