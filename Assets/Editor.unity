@@ -95974,14 +95974,12 @@ MonoBehaviour:
   worldGrassHiFreq: 0.035
   worldStripeStrength: 0.1
   worldSpeckleStrength: 0.05
-  drawIntersections: 1
   drawCrosswalks: 1
   crosswalkBandFeet: 8
   crosswalkStripeFeet: 2
   crosswalkGapFeet: 2
   crosswalkInsetFeet: 1
   crosswalkColor: {r: 1, g: 1, b: 1, a: 1}
-  intersectionOutline: {r: 1, g: 1, b: 1, a: 0.85}
   drawSidewalks: 1
   sidewalkFeet: 6
   curbEdgeColor: {r: 1, g: 1, b: 1, a: 1}

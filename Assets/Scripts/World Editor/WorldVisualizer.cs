@@ -1,13 +1,13 @@
-using UnityEngine;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using LifeSim.Units;
+using UnityEngine;
 
 /// <summary>
 /// Renders world debug visuals (roads, sidewalks, crosswalks, intersections).
 /// This version fixes compile errors by:
 ///  - Using IntersectionData.points (not .polygon)
-///  - Adding the missing drawIntersections toggle
 ///  - Providing both sync and coroutine ("Async") visualizers
 /// Nothing here mutates Unity objects off the main thread; the async method yields between batches.
 /// </summary>
@@ -45,15 +45,13 @@ public class WorldVisualizer : MonoBehaviour
     private static readonly int BaseMap = Shader.PropertyToID("_BaseMap");
     private static readonly int MainTex = Shader.PropertyToID("_MainTex");
 
-    [Header("Intersection & Crosswalks")]
-    [SerializeField] private bool drawIntersections = false;
+    [Header("Crosswalks")]
     [SerializeField] private bool drawCrosswalks = true;
     [SerializeField, Min(0f)] private float crosswalkBandFeet = 8f;   // depth of zebra band along road
     [SerializeField, Min(0f)] private float crosswalkStripeFeet = 2f;
     [SerializeField, Min(0f)] private float crosswalkGapFeet = 2f;
     [SerializeField, Min(0f)] private float crosswalkInsetFeet = 1f;
     [SerializeField] private Color crosswalkColor = Color.white;
-    [SerializeField] private Color intersectionOutline = new Color(1f, 1f, 1f, 0.85f);
 
     [Header("Sidewalks (debug)")]
     [SerializeField] private bool drawSidewalks = true;
@@ -85,113 +83,87 @@ public class WorldVisualizer : MonoBehaviour
         public bool isInterior;
     }
 
+    private struct DebugLine
+    {
+        public Vector3 start;
+        public Vector3 end;
+        public Color color;
+    }
+
+    private struct GeometrySettingsSnapshot : IEquatable<GeometrySettingsSnapshot>
+    {
+        public bool drawSidewalks;
+        public bool drawCrosswalks;
+        public float dashFeet;
+        public float gapFeet;
+        public float doubleYellowGapFeet;
+        public float markingLift;
+        public float edgeLift;
+        public float sidewalkFeet;
+        public float crosswalkBandFeet;
+        public float crosswalkStripeFeet;
+        public float crosswalkGapFeet;
+        public float crosswalkInsetFeet;
+        public float parkYOffset;
+        public Color centerlineYellow;
+        public Color laneDashWhite;
+        public Color curbEdgeColor;
+        public Color sidewalkEdgeColor;
+        public Color crosswalkColor;
+
+        public bool Equals(GeometrySettingsSnapshot other)
+        {
+            return drawSidewalks == other.drawSidewalks &&
+                   drawCrosswalks == other.drawCrosswalks &&
+                   dashFeet == other.dashFeet &&
+                   gapFeet == other.gapFeet &&
+                   doubleYellowGapFeet == other.doubleYellowGapFeet &&
+                   markingLift == other.markingLift &&
+                   edgeLift == other.edgeLift &&
+                   sidewalkFeet == other.sidewalkFeet &&
+                   crosswalkBandFeet == other.crosswalkBandFeet &&
+                   crosswalkStripeFeet == other.crosswalkStripeFeet &&
+                   crosswalkGapFeet == other.crosswalkGapFeet &&
+                   crosswalkInsetFeet == other.crosswalkInsetFeet &&
+                   parkYOffset == other.parkYOffset &&
+                   centerlineYellow == other.centerlineYellow &&
+                   laneDashWhite == other.laneDashWhite &&
+                   curbEdgeColor == other.curbEdgeColor &&
+                   sidewalkEdgeColor == other.sidewalkEdgeColor &&
+                   crosswalkColor == other.crosswalkColor;
+        }
+    }
+
     private readonly Dictionary<(int index, bool isStart), CornerPoints> _cornerCache = new();
     private bool _cornerCacheDirty = true;
+    private readonly List<DebugLine> _roadLines = new();
+    private readonly List<DebugLine> _sidewalkLines = new();
+    private readonly List<DebugLine> _crosswalkLines = new();
+    private bool _geometryDirty = true;
+    private bool _hasGeometrySettingsSnapshot;
+    private GeometrySettingsSnapshot _lastGeometrySettings;
 
     private void Update()
     {
         if (_saveToVisualize == null) return;
 
-        // ---- Intersections outline ----
-        if (_saveToVisualize.layout?.intersections != null)
+        EnsureGeometry();
+
+        DrawLines(_roadLines);
+
+        if (drawSidewalks && _sidewalkLines.Count > 0)
+            DrawLines(_sidewalkLines);
+
+        if (drawCrosswalks && _crosswalkLines.Count > 0)
+            DrawLines(_crosswalkLines);
+    }
+
+    private static void DrawLines(List<DebugLine> lines)
+    {
+        for (int i = 0; i < lines.Count; i++)
         {
-            foreach (var inter in _saveToVisualize.layout.intersections)
-            {
-                if (drawIntersections)
-                {
-                    var pts = inter.points;
-                    if (pts != null && pts.Count >= 3)
-                    {
-                        for (int i = 0; i < pts.Count; i++)
-                        {
-                            var p0 = pts[i];
-                            var p1 = pts[(i + 1) % pts.Count];
-                            var a = new Vector3(p0.x, parkYOffset + markingLift, p0.y);
-                            var b = new Vector3(p1.x, parkYOffset + markingLift, p1.y);
-                            Debug.DrawLine(a, b, intersectionOutline);
-                        }
-                    }
-                }
-
-                // Crosswalks (re-draw every frame)
-                if (drawCrosswalks && inter.connectors != null)
-                {
-                    foreach (var c in inter.connectors)
-                        DrawCrosswalk(c);
-                }
-            }
-        }
-
-        // ---- Roads + sidewalks ----
-        if (_saveToVisualize.roadNetwork != null)
-        {
-            float dashU = Size.Feet(dashFeet);
-            float gapU  = Size.Feet(gapFeet);
-            float sidewalkU = Size.Feet(sidewalkFeet);
-
-            Dictionary<(int index, bool isStart), CornerPoints> cornerMap = null;
-            if (drawSidewalks)
-                cornerMap = EnsureCornerMap();
-
-            var roads = _saveToVisualize.roadNetwork;
-            for (int roadIndex = 0; roadIndex < roads.Count; roadIndex++)
-            {
-                var road = roads[roadIndex];
-                Vector3 a = new Vector3(road.start.x, parkYOffset + markingLift, road.start.y);
-                Vector3 b = new Vector3(road.end.x,   parkYOffset + markingLift, road.end.y);
-
-                // Build perpendicular
-                Vector3 v = b - a;
-                Vector2 dir2 = new Vector2(v.x, v.z);
-                if (dir2.sqrMagnitude < 1e-6f) continue;
-                dir2.Normalize();
-                Vector2 perp2 = new Vector2(-dir2.y, dir2.x);
-                Vector3 perp  = new Vector3(perp2.x, 0f, perp2.y);
-
-                // Centerlines / lane markings
-                if (road.type == RoadType.Arterial)
-                {
-                    float halfGap = Size.Feet(doubleYellowGapFeet) * 0.5f;
-                    DrawSolidOffset(a, b,  perp * (+halfGap), centerlineYellow, markingLift);
-                    DrawSolidOffset(a, b,  perp * (-halfGap), centerlineYellow, markingLift);
-                }
-                else
-                {
-                    DrawDashedOffset(a, b, Vector3.zero, laneDashWhite, dashU, gapU, markingLift);
-                }
-
-                // Sidewalk curb & outer edge
-                if (drawSidewalks)
-                {
-                    float halfRoad = road.width * 0.5f;
-                    Vector3 curbOff = perp * halfRoad;
-                    Vector3 sideOff = perp * (halfRoad + sidewalkU);
-                    Vector3 lift = Vector3.up * edgeLift;
-
-                    Vector3 aCurbL = a + curbOff + lift;
-                    Vector3 aCurbR = a - curbOff + lift;
-                    Vector3 bCurbL = b + curbOff + lift;
-                    Vector3 bCurbR = b - curbOff + lift;
-
-                    Vector3 aSideL = a + sideOff + lift;
-                    Vector3 aSideR = a - sideOff + lift;
-                    Vector3 bSideL = b + sideOff + lift;
-                    Vector3 bSideR = b - sideOff + lift;
-
-                    CornerPoints startCorners = default;
-                    CornerPoints endCorners = default;
-                    bool hasStartCorners = cornerMap != null && OverrideCorner(cornerMap, roadIndex, true, ref aCurbL, ref aCurbR, ref aSideL, ref aSideR, out startCorners);
-                    bool hasEndCorners   = cornerMap != null && OverrideCorner(cornerMap, roadIndex, false, ref bCurbL, ref bCurbR, ref bSideL, ref bSideR, out endCorners);
-
-                    if (hasStartCorners && hasEndCorners && startCorners.isInterior && endCorners.isInterior)
-                        continue;
-
-                    Debug.DrawLine(aCurbL, bCurbL, curbEdgeColor);
-                    Debug.DrawLine(aCurbR, bCurbR, curbEdgeColor);
-                    Debug.DrawLine(aSideL, bSideL, sidewalkEdgeColor);
-                    Debug.DrawLine(aSideR, bSideR, sidewalkEdgeColor);
-                }
-            }
+            var line = lines[i];
+            Debug.DrawLine(line.start, line.end, line.color);
         }
     }
 
@@ -201,6 +173,7 @@ public class WorldVisualizer : MonoBehaviour
     {
         _saveToVisualize = save;
         _cornerCacheDirty = true;
+        _geometryDirty = true;
     }
 
     // ===== Background planes (world + park) =====
@@ -219,6 +192,247 @@ public class WorldVisualizer : MonoBehaviour
         for (int i = _worldContainer.childCount - 1; i >= 0; i--)
             Destroy(_worldContainer.GetChild(i).gameObject);
     }
+
+    #region Geometry Cache
+    private GeometrySettingsSnapshot CaptureGeometrySettings()
+    {
+        return new GeometrySettingsSnapshot
+        {
+            drawSidewalks = drawSidewalks,
+            drawCrosswalks = drawCrosswalks,
+            dashFeet = dashFeet,
+            gapFeet = gapFeet,
+            doubleYellowGapFeet = doubleYellowGapFeet,
+            markingLift = markingLift,
+            edgeLift = edgeLift,
+            sidewalkFeet = sidewalkFeet,
+            crosswalkBandFeet = crosswalkBandFeet,
+            crosswalkStripeFeet = crosswalkStripeFeet,
+            crosswalkGapFeet = crosswalkGapFeet,
+            crosswalkInsetFeet = crosswalkInsetFeet,
+            parkYOffset = parkYOffset,
+            centerlineYellow = centerlineYellow,
+            laneDashWhite = laneDashWhite,
+            curbEdgeColor = curbEdgeColor,
+            sidewalkEdgeColor = sidewalkEdgeColor,
+            crosswalkColor = crosswalkColor
+        };
+    }
+
+    private void EnsureGeometry()
+    {
+        if (_saveToVisualize == null)
+            return;
+
+        var currentSettings = CaptureGeometrySettings();
+        bool settingsChanged = !_hasGeometrySettingsSnapshot || !_lastGeometrySettings.Equals(currentSettings);
+
+        if (settingsChanged)
+        {
+            if (_hasGeometrySettingsSnapshot && _lastGeometrySettings.sidewalkFeet != currentSettings.sidewalkFeet)
+                _cornerCacheDirty = true;
+
+            _geometryDirty = true;
+        }
+
+        if (!_geometryDirty)
+            return;
+
+        _roadLines.Clear();
+        _sidewalkLines.Clear();
+        _crosswalkLines.Clear();
+
+        var roads = _saveToVisualize.roadNetwork;
+        if (roads != null && roads.Count > 0)
+        {
+            BuildRoadLines(roads);
+
+            if (drawSidewalks)
+                BuildSidewalkLines(roads);
+        }
+
+        var intersections = _saveToVisualize.layout?.intersections;
+        if (drawCrosswalks && intersections != null && intersections.Count > 0)
+            BuildCrosswalkLines(intersections);
+
+        _lastGeometrySettings = currentSettings;
+        _hasGeometrySettingsSnapshot = true;
+        _geometryDirty = false;
+    }
+
+    private void BuildRoadLines(List<RoadSegment> roads)
+    {
+        float dashU = Size.Feet(dashFeet);
+        float gapU = Size.Feet(gapFeet);
+        float halfGap = Size.Feet(doubleYellowGapFeet) * 0.5f;
+        Vector3 lift = Vector3.up * markingLift;
+
+        for (int i = 0; i < roads.Count; i++)
+        {
+            var road = roads[i];
+            Vector3 a = new Vector3(road.start.x, parkYOffset, road.start.y);
+            Vector3 b = new Vector3(road.end.x, parkYOffset, road.end.y);
+
+            Vector3 v = b - a;
+            Vector2 dir2 = new Vector2(v.x, v.z);
+            if (dir2.sqrMagnitude < 1e-6f) continue;
+            dir2.Normalize();
+            Vector2 perp2 = new Vector2(-dir2.y, dir2.x);
+            Vector3 perp = new Vector3(perp2.x, 0f, perp2.y);
+
+            Vector3 startLifted = a + lift;
+            Vector3 endLifted = b + lift;
+
+            if (road.type == RoadType.Arterial)
+            {
+                Vector3 offset = perp * halfGap;
+                _roadLines.Add(new DebugLine { start = startLifted + offset, end = endLifted + offset, color = centerlineYellow });
+                _roadLines.Add(new DebugLine { start = startLifted - offset, end = endLifted - offset, color = centerlineYellow });
+            }
+            else
+            {
+                AddDashedLineSegments(_roadLines, startLifted, endLifted, laneDashWhite, dashU, gapU);
+            }
+        }
+    }
+
+    private void BuildSidewalkLines(List<RoadSegment> roads)
+    {
+        float sidewalkU = Size.Feet(sidewalkFeet);
+        if (sidewalkU <= 1e-4f)
+            return;
+
+        Dictionary<(int index, bool isStart), CornerPoints> cornerMap = EnsureCornerMap();
+        Vector3 lift = Vector3.up * edgeLift;
+
+        for (int roadIndex = 0; roadIndex < roads.Count; roadIndex++)
+        {
+            var road = roads[roadIndex];
+            Vector3 a = new Vector3(road.start.x, parkYOffset, road.start.y);
+            Vector3 b = new Vector3(road.end.x, parkYOffset, road.end.y);
+
+            Vector3 v = b - a;
+            Vector2 dir2 = new Vector2(v.x, v.z);
+            if (dir2.sqrMagnitude < 1e-6f) continue;
+            dir2.Normalize();
+            Vector2 perp2 = new Vector2(-dir2.y, dir2.x);
+            Vector3 perp = new Vector3(perp2.x, 0f, perp2.y);
+
+            float halfRoad = road.width * 0.5f;
+            Vector3 curbOff = perp * halfRoad;
+            Vector3 sideOff = perp * (halfRoad + sidewalkU);
+
+            Vector3 aCurbL = a + curbOff + lift;
+            Vector3 aCurbR = a - curbOff + lift;
+            Vector3 bCurbL = b + curbOff + lift;
+            Vector3 bCurbR = b - curbOff + lift;
+
+            Vector3 aSideL = a + sideOff + lift;
+            Vector3 aSideR = a - sideOff + lift;
+            Vector3 bSideL = b + sideOff + lift;
+            Vector3 bSideR = b - sideOff + lift;
+
+            CornerPoints startCorners = default;
+            CornerPoints endCorners = default;
+            bool hasStartCorners = cornerMap != null && OverrideCorner(cornerMap, roadIndex, true, ref aCurbL, ref aCurbR, ref aSideL, ref aSideR, out startCorners);
+            bool hasEndCorners = cornerMap != null && OverrideCorner(cornerMap, roadIndex, false, ref bCurbL, ref bCurbR, ref bSideL, ref bSideR, out endCorners);
+
+            if (hasStartCorners && hasEndCorners && startCorners.isInterior && endCorners.isInterior)
+                continue;
+
+            _sidewalkLines.Add(new DebugLine { start = aCurbL, end = bCurbL, color = curbEdgeColor });
+            _sidewalkLines.Add(new DebugLine { start = aCurbR, end = bCurbR, color = curbEdgeColor });
+            _sidewalkLines.Add(new DebugLine { start = aSideL, end = bSideL, color = sidewalkEdgeColor });
+            _sidewalkLines.Add(new DebugLine { start = aSideR, end = bSideR, color = sidewalkEdgeColor });
+        }
+    }
+
+    private void BuildCrosswalkLines(List<IntersectionData> intersections)
+    {
+        float bandU = Size.Feet(crosswalkBandFeet);
+        float stripeU = Size.Feet(crosswalkStripeFeet);
+        float gapU = Size.Feet(crosswalkGapFeet);
+        float insetU = Size.Feet(crosswalkInsetFeet);
+
+        if (bandU <= 1e-4f)
+            return;
+
+        for (int i = 0; i < intersections.Count; i++)
+        {
+            var inter = intersections[i];
+            if (inter.connectors == null) continue;
+
+            for (int j = 0; j < inter.connectors.Count; j++)
+            {
+                var connector = inter.connectors[j];
+                Vector2 n2 = connector.normal;
+                if (n2.sqrMagnitude < 1e-6f) continue;
+                n2.Normalize();
+
+                Vector2 t2 = new Vector2(-n2.y, n2.x);
+                Vector3 perp = new Vector3(t2.x, 0f, t2.y);
+                Vector3 bandDir = new Vector3(n2.x, 0f, n2.y);
+
+                float halfRoad = connector.width * 0.5f;
+                Vector3 basePos = new Vector3(
+                    connector.point.x + n2.x * insetU,
+                    parkYOffset + markingLift,
+                    connector.point.y + n2.y * insetU
+                );
+
+                float placed = 0f;
+                while (placed < bandU - 1e-3f)
+                {
+                    float seg = Mathf.Min(stripeU, bandU - placed);
+                    if (seg <= 1e-4f)
+                        seg = bandU - placed;
+
+                    Vector3 mid = basePos + bandDir * (placed + seg * 0.5f);
+                    Vector3 a = mid - perp * halfRoad;
+                    Vector3 b = mid + perp * halfRoad;
+                    _crosswalkLines.Add(new DebugLine { start = a, end = b, color = crosswalkColor });
+
+                    if (stripeU <= 1e-4f && gapU <= 1e-4f)
+                        break;
+
+                    if (stripeU <= 1e-4f)
+                        break;
+
+                    placed += stripeU + gapU;
+                }
+            }
+        }
+    }
+
+    private static void AddDashedLineSegments(List<DebugLine> target, Vector3 start, Vector3 end, Color color, float dashU, float gapU)
+    {
+        float length = Vector3.Distance(start, end);
+        if (length < 1e-4f)
+            return;
+
+        if (dashU <= 1e-4f || gapU <= 1e-4f)
+        {
+            target.Add(new DebugLine { start = start, end = end, color = color });
+            return;
+        }
+
+        Vector3 dir = (end - start).normalized;
+        float t = 0f;
+
+        while (t < length - 1e-4f)
+        {
+            float seg = Mathf.Min(dashU, length - t);
+            if (seg <= 1e-4f)
+                seg = length - t;
+
+            Vector3 s = start + dir * t;
+            Vector3 e = s + dir * seg;
+            target.Add(new DebugLine { start = s, end = e, color = color });
+
+            t += dashU + gapU;
+        }
+    }
+    #endregion
 
     private GameObject CreatePlane(string name, Rect bounds, Material material, float yOffset, bool isPark)
     {
@@ -300,12 +514,6 @@ public class WorldVisualizer : MonoBehaviour
             yield return DrawSidewalksAsync(save);
         }
 
-        if (save.layout != null && save.layout.intersections != null)
-        {
-            onStatus?.Invoke("Drawing intersections…");
-            yield return DrawIntersectionsAsync(save.layout.intersections);
-        }
-
         if (drawCrosswalks && save.layout != null && save.layout.intersections != null)
         {
             onStatus?.Invoke("Painting crosswalks…");
@@ -329,205 +537,74 @@ public class WorldVisualizer : MonoBehaviour
     #region Roads / Markings
     IEnumerator DrawRoadNetworkAsync(WorldSave save, System.Action<float> onProgress)
     {
-        if (save.roadNetwork == null || save.roadNetwork.Count == 0) yield break;
+        EnsureGeometry();
+        _ = save;
 
-        float total = save.roadNetwork.Count;
+        if (_roadLines.Count == 0)
+        {
+            onProgress?.Invoke(0.4f);
+            yield break;
+        }
+
+        const float progressScale = 0.4f;
+        float total = _roadLines.Count;
         float done = 0f;
 
-        float dashU = Size.Feet(dashFeet);
-        float gapU = Size.Feet(gapFeet);
-
-        foreach (var road in save.roadNetwork)
+        for (int i = 0; i < _roadLines.Count; i++)
         {
-            // world-space coords (XZ plane)
-            Vector3 a = new Vector3(road.start.x, parkYOffset, road.start.y);
-            Vector3 b = new Vector3(road.end.x, parkYOffset, road.end.y);
-
-            // center dashes or double yellow
-            Vector3 dir3 = (b - a);
-            Vector2 dir2 = new Vector2(dir3.x, dir3.z);
-            if (dir2.sqrMagnitude < 1e-6f) { done += 1f; continue; }
-            dir2.Normalize();
-            Vector2 perp2 = new Vector2(-dir2.y, dir2.x);
-            Vector3 perp = new Vector3(perp2.x, 0f, perp2.y);
-
-            if (road.type == RoadType.Arterial)
-            {
-                // double yellow (two solid lines offset from center)
-                float halfGap = Size.Feet(doubleYellowGapFeet) * 0.5f;
-                DrawSolidOffset(a, b, perp * (+halfGap), centerlineYellow, markingLift);
-                DrawSolidOffset(a, b, perp * (-halfGap), centerlineYellow, markingLift);
-            }
-            else
-            {
-                // dashed white center
-                DrawDashedOffset(a, b, Vector3.zero, laneDashWhite, dashU, gapU, markingLift);
-            }
-
+            var line = _roadLines[i];
+            Debug.DrawLine(line.start, line.end, line.color);
             done += 1f;
-            if ((int)done % 16 == 0)
+
+            if ((i & 31) == 31)
             {
-                onProgress?.Invoke(done / total * 0.4f);
+                onProgress?.Invoke(done / total * progressScale);
                 yield return null;
             }
         }
-        onProgress?.Invoke(0.4f);
+
+        onProgress?.Invoke(progressScale);
     }
 
     IEnumerator DrawSidewalksAsync(WorldSave save)
     {
-        float sidewalkU = Size.Feet(sidewalkFeet);
+        EnsureGeometry();
+        _ = save;
 
-        Dictionary<(int index, bool isStart), CornerPoints> cornerMap = null;
-        if (drawSidewalks)
-            cornerMap = EnsureCornerMap();
+        if (!drawSidewalks || _sidewalkLines.Count == 0)
+            yield break;
 
-        int i = 0;
-        var roads = save.roadNetwork;
-        for (int roadIndex = 0; roadIndex < roads.Count; roadIndex++)
+        for (int i = 0; i < _sidewalkLines.Count; i++)
         {
-            var road = roads[roadIndex];
-            Vector3 a = new Vector3(road.start.x, parkYOffset, road.start.y);
-            Vector3 b = new Vector3(road.end.x, parkYOffset, road.end.y);
+            var line = _sidewalkLines[i];
+            Debug.DrawLine(line.start, line.end, line.color);
 
-            Vector3 v = b - a;
-            Vector2 dir2 = new Vector2(v.x, v.z);
-            if (dir2.sqrMagnitude < 1e-6f) continue;
-            dir2.Normalize();
-            Vector2 perp2 = new Vector2(-dir2.y, dir2.x);
-            Vector3 perp = new Vector3(perp2.x, 0f, perp2.y);
-
-            float halfRoad = road.width * 0.5f;
-            Vector3 curbOff = perp * halfRoad;
-            Vector3 sideOff = perp * (halfRoad + sidewalkU);
-
-            Vector3 lift = Vector3.up * edgeLift;
-            Vector3 aCurbL = a + curbOff + lift;
-            Vector3 aCurbR = a - curbOff + lift;
-            Vector3 bCurbL = b + curbOff + lift;
-            Vector3 bCurbR = b - curbOff + lift;
-
-            Vector3 aSideL = a + sideOff + lift;
-            Vector3 aSideR = a - sideOff + lift;
-            Vector3 bSideL = b + sideOff + lift;
-            Vector3 bSideR = b - sideOff + lift;
-
-            CornerPoints startCorners = default;
-            CornerPoints endCorners = default;
-            bool hasStartCorners = cornerMap != null && OverrideCorner(cornerMap, roadIndex, true, ref aCurbL, ref aCurbR, ref aSideL, ref aSideR, out startCorners);
-            bool hasEndCorners   = cornerMap != null && OverrideCorner(cornerMap, roadIndex, false, ref bCurbL, ref bCurbR, ref bSideL, ref bSideR, out endCorners);
-
-            if (hasStartCorners && hasEndCorners && startCorners.isInterior && endCorners.isInterior)
-                continue;
-
-            // curbs
-            Debug.DrawLine(aCurbL, bCurbL, curbEdgeColor);
-            Debug.DrawLine(aCurbR, bCurbR, curbEdgeColor);
-
-            // sidewalk outer edges
-            Debug.DrawLine(aSideL, bSideL, sidewalkEdgeColor);
-            Debug.DrawLine(aSideR, bSideR, sidewalkEdgeColor);
-
-            if ((++i % 24) == 0) yield return null;
+            if (((i + 1) % 32) == 0)
+                yield return null;
         }
     }
 
-    void DrawSolidOffset(Vector3 start, Vector3 end, Vector3 offset, Color color, float lift)
-    {
-        Debug.DrawLine(start + offset + Vector3.up * lift, end + offset + Vector3.up * lift, color);
-    }
-
-    void DrawDashedOffset(Vector3 start, Vector3 end, Vector3 offset, Color color, float dashU, float gapU, float lift)
-    {
-        Vector3 a = start + offset + Vector3.up * lift;
-        Vector3 b = end + offset + Vector3.up * lift;
-        float len = Vector3.Distance(a, b);
-        if (len < 1e-4f) return;
-
-        Vector3 dir = (b - a).normalized;
-        float t = 0f;
-        while (t < len)
-        {
-            float seg = Mathf.Min(dashU, len - t);
-            Vector3 s = a + dir * t;
-            Vector3 e = s + dir * seg;
-            Debug.DrawLine(s, e, color);
-            t += dashU + gapU;
-        }
-    }
     #endregion
 
     #region Intersections & Crosswalks
-    IEnumerator DrawIntersectionsAsync(List<IntersectionData> intersections)
-    {
-        if (!drawIntersections) yield break;
-        if (intersections == null) yield break;
-
-        int i = 0;
-        foreach (var inter in intersections)
-        {
-            var pts = inter.points; // <-- property name fix
-            if (pts == null || pts.Count < 3) continue;
-
-            float y = parkYOffset + 0.02f;
-            for (int k = 0; k < pts.Count; k++)
-            {
-                Vector2 p0 = pts[k];
-                Vector2 p1 = pts[(k + 1) % pts.Count];
-                Debug.DrawLine(new Vector3(p0.x, y, p0.y), new Vector3(p1.x, y, p1.y), intersectionOutline);
-            }
-
-            if ((++i % 12) == 0) yield return null;
-        }
-    }
-
     IEnumerator DrawCrosswalksAsync(List<IntersectionData> intersections)
     {
-        int i = 0;
-        foreach (var inter in intersections)
+        EnsureGeometry();
+        _ = intersections;
+
+        if (!drawCrosswalks || _crosswalkLines.Count == 0)
+            yield break;
+
+        for (int i = 0; i < _crosswalkLines.Count; i++)
         {
-            if (inter.connectors == null) continue;
-            foreach (var c in inter.connectors)
-            {
-                DrawCrosswalk(c);
-                if ((++i % 8) == 0) yield return null;
-            }
+            var line = _crosswalkLines[i];
+            Debug.DrawLine(line.start, line.end, line.color);
+
+            if ((i & 15) == 15)
+                yield return null;
         }
     }
 
-    void DrawCrosswalk(IntersectionConnector c)
-    {
-        // units
-        float bandU = Size.Feet(crosswalkBandFeet);
-        float stripeU = Size.Feet(crosswalkStripeFeet);
-        float gapU = Size.Feet(crosswalkGapFeet);
-        float insetU = Size.Feet(crosswalkInsetFeet);
-
-        // road basis
-        Vector2 n2 = c.normal; n2.Normalize();               // outward from intersection
-        Vector2 t2 = new Vector2(-n2.y, n2.x);               // along-road tangent
-        Vector3 perp = new Vector3(t2.x, 0f, t2.y);
-
-        // curb-to-curb approximate width (use connector width)
-        float halfRoad = c.width * 0.5f;
-
-        // start line position just beyond the polygon edge (we just offset from connector point)
-        Vector3 basePos = new Vector3(c.point.x + n2.x * insetU, parkYOffset + markingLift, c.point.y + n2.y * insetU);
-
-        // lay stripes along the band (perpendicular to road direction)
-        float placed = 0f;
-        while (placed < bandU - 1e-3f)
-        {
-            float seg = Mathf.Min(stripeU, bandU - placed);
-            Vector3 mid = basePos + new Vector3(n2.x, 0f, n2.y) * (placed + seg * 0.5f);
-
-            Vector3 a = mid - perp * halfRoad;
-            Vector3 b = mid + perp * halfRoad;
-
-            Debug.DrawLine(a, b, crosswalkColor);
-            placed += stripeU + gapU;
-        }
-    }
     #endregion
 
     #region Lots helper
