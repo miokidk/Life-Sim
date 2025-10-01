@@ -95,12 +95,8 @@ public class EditorViewSwitcher : MonoBehaviour
         if (controller != null &&
             controller.State == EditorController.EditorState.CharacterCreator) return;
 
-        // Only tilt when mouse is actually moving (cheap)
-        if (Mathf.Abs(Input.GetAxis("Mouse X")) > 0.01f ||
-            Mathf.Abs(Input.GetAxis("Mouse Y")) > 0.01f)
-        {
-            HandleCameraTilt();
-        }
+        // Keep updating the tilt so easing finishes even after the mouse stops.
+        HandleCameraTilt();
     }
         
     private void HandleSelectionChanged(characterStats stats)

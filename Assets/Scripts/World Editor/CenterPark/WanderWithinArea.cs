@@ -6,6 +6,7 @@ public class WanderWithinArea : MonoBehaviour
     [Header("Motion")]
     [SerializeField] private Vector2 speedRange = new Vector2(0.8f, 1.2f);
     [SerializeField] private float noiseFrequency = 0.25f;   // lower = smoother turns
+    [SerializeField] private float noiseStrength = 0.35f;     // how strongly noise steers away from the target vector
     [SerializeField] private float turnDegreesPerSec = 360f;
     [SerializeField] private float edgeMargin = 0.5f;        // keep this far inside bounds
 
@@ -26,6 +27,11 @@ public class WanderWithinArea : MonoBehaviour
     [SerializeField] private bool startPaused = false;
     [SerializeField] private bool externallyPaused = false;
     [SerializeField] private Vector2 frequencyJitter = new Vector2(0.9f, 1.1f);
+    [Header("Destinations")]
+    [SerializeField] private Vector2 retargetIntervalRange = new Vector2(4f, 10f);
+    [SerializeField, Min(0.05f)] private float targetReachDistance = 0.6f;
+    [SerializeField, Range(0f, 1f)] private float minTravelDistanceFraction = 0.35f;
+
     float phase, freqMul;
 
     public Vector2 MoveDurationRange { get => moveDurationRange; set => moveDurationRange = value; }
@@ -35,11 +41,19 @@ public class WanderWithinArea : MonoBehaviour
     Coroutine stateCo;
 
     float speed, seedX, seedZ;
+    Vector3 currentTarget;
+    float nextRetarget;
+    bool hasTarget;
     CharacterController cc;
     Bounds areaBounds;
 
     // This now accepts a Bounds struct directly.
-    public void SetArea(Bounds b) { areaBounds = b; }
+    public void SetArea(Bounds b)
+    {
+        areaBounds = b;
+        if (isActiveAndEnabled)
+            ChooseNewTarget(true);
+    }
 
     void Awake()
     {
@@ -50,6 +64,7 @@ public class WanderWithinArea : MonoBehaviour
         speed = Random.Range(speedRange.x, speedRange.y);
         seedX = (Random.value + GetInstanceID() * 0.013f) * 1000f;
         seedZ = (Random.value + GetInstanceID() * 0.029f) * 1000f;
+        ChooseNewTarget(true);
     }
 
     void Update()
@@ -63,16 +78,32 @@ public class WanderWithinArea : MonoBehaviour
             return;
         }
 
+        if (!hasTarget || Time.time >= nextRetarget)
+            ChooseNewTarget();
+
+        Vector3 pos = transform.position;
+        Vector3 toTarget = currentTarget - pos;
+        toTarget.y = 0f;
+        float distToTarget = toTarget.magnitude;
+        if (distToTarget <= targetReachDistance)
+        {
+            ChooseNewTarget(true);
+            return;
+        }
+
+        Vector3 dir = toTarget / Mathf.Max(0.0001f, distToTarget);
+
         float t = (Time.time + phase) * noiseFrequency * freqMul;
-        Vector3 dir = new Vector3(
+        Vector3 wander = new Vector3(
             Mathf.PerlinNoise(seedX, t) * 2f - 1f,
             0f,
             Mathf.PerlinNoise(seedZ, t) * 2f - 1f
-        ).normalized;
-        if (dir.sqrMagnitude < 1e-6f) return;
+        );
+        dir = (dir + wander * noiseStrength).normalized;
+        if (dir.sqrMagnitude < 1e-4f)
+            dir = toTarget.normalized;
 
         float dt = Time.deltaTime;
-        Vector3 pos = transform.position;
         Vector3 step = dir * speed * dt;
         Vector3 next = pos + step;
 
@@ -83,7 +114,16 @@ public class WanderWithinArea : MonoBehaviour
         if (next.x > maxX) { next.x = maxX; clamped = true; }
         if (next.z < minZ) { next.z = minZ; clamped = true; }
         if (next.z > maxZ) { next.z = maxZ; clamped = true; }
-        if (clamped) { dir = (next - pos).normalized; step = dir * speed * dt; }
+        if (clamped)
+        {
+            dir = (next - pos);
+            dir.y = 0f;
+            float len = dir.magnitude;
+            if (len > 0.0001f)
+                dir /= len;
+            step = dir * speed * dt;
+            ChooseNewTarget(true);
+        }
 
         Quaternion face = Quaternion.LookRotation(dir, Vector3.up);
         transform.rotation = Quaternion.RotateTowards(transform.rotation, face, turnDegreesPerSec * dt);
@@ -118,6 +158,9 @@ public class WanderWithinArea : MonoBehaviour
         // FIXED: Removed the call to the non-existent CacheBounds() method.
         if (stateCo != null) StopCoroutine(stateCo);
         stateCo = StartCoroutine(StateLoop());
+
+        if (areaBounds.extents != Vector3.zero)
+            ChooseNewTarget(true);
     }
 
     void OnDisable()
@@ -149,5 +192,88 @@ public class WanderWithinArea : MonoBehaviour
     {
         externallyPaused = pause;
         if (pause) SetAnim(false, 0f);
+    }
+
+    void ChooseNewTarget(bool force = false)
+    {
+        if (areaBounds.extents == Vector3.zero) return;
+
+        if (!force && Time.time < nextRetarget && hasTarget) return;
+
+        float minX = areaBounds.min.x + edgeMargin;
+        float maxX = areaBounds.max.x - edgeMargin;
+        float minZ = areaBounds.min.z + edgeMargin;
+        float maxZ = areaBounds.max.z - edgeMargin;
+
+        if (minX >= maxX)
+        {
+            float midX = areaBounds.center.x;
+            minX = maxX = midX;
+        }
+        if (minZ >= maxZ)
+        {
+            float midZ = areaBounds.center.z;
+            minZ = maxZ = midZ;
+        }
+
+        Vector3 candidate = currentTarget;
+        Vector3 origin = transform.position;
+        origin.y = 0f;
+
+        float longestSide = Mathf.Max(areaBounds.size.x, areaBounds.size.z);
+        float minDist = longestSide * minTravelDistanceFraction;
+        float minDistSq = minDist * minDist;
+
+        const int maxAttempts = 12;
+        bool picked = false;
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            Vector3 sample = new Vector3(
+                Random.Range(minX, maxX),
+                areaBounds.max.y + groundRayTop,
+                Random.Range(minZ, maxZ)
+            );
+
+            Vector3 flat = sample;
+            flat.y = 0f;
+            float distSq = (flat - origin).sqrMagnitude;
+
+            if (minTravelDistanceFraction > 0f && distSq < minDistSq)
+                continue;
+
+            candidate = sample;
+            picked = true;
+            break;
+        }
+
+        if (!picked)
+        {
+            candidate = new Vector3(
+                Random.Range(minX, maxX),
+                areaBounds.max.y + groundRayTop,
+                Random.Range(minZ, maxZ)
+            );
+        }
+
+        if (Physics.Raycast(candidate, Vector3.down, out var hit, groundRayTop + areaBounds.size.y + 10f))
+            candidate.y = hit.point.y;
+        else
+            candidate.y = areaBounds.center.y - areaBounds.extents.y;
+
+        currentTarget = candidate;
+        hasTarget = true;
+
+        float minInterval = Mathf.Max(0.1f, Mathf.Min(retargetIntervalRange.x, retargetIntervalRange.y));
+        float maxInterval = Mathf.Max(minInterval, Mathf.Max(retargetIntervalRange.x, retargetIntervalRange.y));
+
+        Vector3 flatCurrent = currentTarget;
+        flatCurrent.y = 0f;
+        Vector3 flatPos = transform.position;
+        flatPos.y = 0f;
+        float estimatedTravelTime = Vector3.Distance(flatPos, flatCurrent) / Mathf.Max(0.05f, speed);
+
+        float interval = Random.Range(minInterval, maxInterval);
+        interval = Mathf.Max(interval, estimatedTravelTime * 0.85f);
+        nextRetarget = Time.time + interval;
     }
 }
