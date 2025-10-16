@@ -28,6 +28,13 @@ public class CenterParkSpawner : MonoBehaviour
 
     private readonly Dictionary<string, GameObject> spawned = new();
     private Bounds parkBounds;
+    private Vector3 parkCenter;
+    private Vector3 parkRight;
+    private Vector3 parkForward;
+    private float parkHalfWidth;
+    private float parkHalfDepth;
+    private float parkGroundY;
+    private bool parkAreaValid;
 
     void Awake()
     {
@@ -101,14 +108,43 @@ public class CenterParkSpawner : MonoBehaviour
 
         var rect = save.layout.centerParkBounds;
 
-        // NEW: find the real ground Y at park center
+        float rotationDeg = save.layout.centerParkRotationDeg;
         float groundY = FindGroundYAt(rect.center);
 
-        // NEW: center bounds on ground (tiny Y extent is fine)
-        parkBounds = new Bounds(
-            new Vector3(rect.center.x, groundY, rect.center.y),
-            new Vector3(rect.width, 0.2f, rect.height)
-        );
+        parkCenter = new Vector3(rect.center.x, groundY, rect.center.y);
+        parkHalfWidth = Mathf.Max(0f, rect.width * 0.5f);
+        parkHalfDepth = Mathf.Max(0f, rect.height * 0.5f);
+        parkGroundY = groundY;
+        parkAreaValid = parkHalfWidth > 0.01f && parkHalfDepth > 0.01f;
+
+        float rad = rotationDeg * Mathf.Deg2Rad;
+        parkRight = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad));
+        parkForward = new Vector3(-Mathf.Sin(rad), 0f, Mathf.Cos(rad));
+
+        if (parkRight.sqrMagnitude < 1e-6f) parkRight = Vector3.right;
+        else parkRight.Normalize();
+        if (parkForward.sqrMagnitude < 1e-6f) parkForward = Vector3.forward;
+        else parkForward.Normalize();
+
+        transform.position = parkCenter;
+        transform.rotation = Quaternion.Euler(0f, rotationDeg, 0f);
+
+        var corners = save.layout.centerParkCorners;
+        if (corners != null && corners.Length > 0)
+        {
+            var bounds = new Bounds(parkCenter, Vector3.zero);
+            for (int i = 0; i < corners.Length; i++)
+            {
+                Vector2 c2 = corners[i];
+                bounds.Encapsulate(new Vector3(c2.x, groundY, c2.y));
+            }
+            bounds.Expand(new Vector3(0f, 0.2f, 0f));
+            parkBounds = bounds;
+        }
+        else
+        {
+            parkBounds = new Bounds(parkCenter, new Vector3(rect.width, 0.2f, rect.height));
+        }
 
         SpawnList(save.mains);
         SpawnList(save.sides);
@@ -155,7 +191,10 @@ public class CenterParkSpawner : MonoBehaviour
             handle.Bind(stats);
 
             var wander = go.GetComponent<WanderWithinArea>() ?? go.AddComponent<WanderWithinArea>();
-            wander.SetArea(parkBounds);
+            if (parkAreaValid)
+                wander.SetOrientedArea(parkCenter, parkRight, parkForward, parkHalfWidth, parkHalfDepth, parkGroundY);
+            else
+                wander.SetArea(parkBounds);
             wander.NoiseFrequency = Random.Range(0.18f, 0.35f);
             wander.EdgeMargin = 0.6f;
             wander.SpeedRange = new Vector2(0.75f, 1.15f);
@@ -190,22 +229,33 @@ public class CenterParkSpawner : MonoBehaviour
     
     Vector3 FindFreeSpot()
     {
-        Vector3 p = RandomPointOnArea(parkBounds);
+        Vector3 p = RandomPointInPark();
 
         for (int i = 0; i < maxAttemptsPerSpawn; i++)
         {
             if (IsFarEnough(p)) return p;
-            p = RandomPointOnArea(parkBounds);
+            p = RandomPointInPark();
         }
         return p;
     }
     
-    static Vector3 RandomPointOnArea(Bounds b)
+    Vector3 RandomPointInPark()
     {
-        float x = Random.Range(b.min.x, b.max.x);
-        float z = Random.Range(b.min.z, b.max.z);
-        float y = b.center.y;
-        return new Vector3(x, y, z);
+        if (parkAreaValid)
+        {
+            float halfW = Mathf.Max(0f, parkHalfWidth);
+            float halfD = Mathf.Max(0f, parkHalfDepth);
+            float u = (halfW > 0f) ? Random.Range(-halfW, halfW) : 0f;
+            float v = (halfD > 0f) ? Random.Range(-halfD, halfD) : 0f;
+            Vector3 offset = parkRight * u + parkForward * v;
+            Vector3 pos = parkCenter + offset;
+            pos.y = parkGroundY;
+            return pos;
+        }
+
+        float x = Random.Range(parkBounds.min.x, parkBounds.max.x);
+        float z = Random.Range(parkBounds.min.z, parkBounds.max.z);
+        return new Vector3(x, parkBounds.center.y, z);
     }
     
     public CharacterHandle GetOrSpawnHandle(characterStats stats)
@@ -235,7 +285,10 @@ public class CenterParkSpawner : MonoBehaviour
         handle.Bind(stats);
         AttachIndicator(go, stats);
         var wander = go.GetComponent<WanderWithinArea>() ?? go.AddComponent<WanderWithinArea>();
-        wander.SetArea(parkBounds);
+        if (parkAreaValid)
+            wander.SetOrientedArea(parkCenter, parkRight, parkForward, parkHalfWidth, parkHalfDepth, parkGroundY);
+        else
+            wander.SetArea(parkBounds);
         wander.NoiseFrequency = Random.Range(0.18f, 0.35f);
         wander.EdgeMargin = 0.6f;
         wander.SpeedRange = new Vector2(0.75f, 1.15f);

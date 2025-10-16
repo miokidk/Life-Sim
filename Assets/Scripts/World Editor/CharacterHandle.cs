@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Reflection;
 
 public class CharacterHandle : MonoBehaviour
 {
@@ -11,12 +12,28 @@ public class CharacterHandle : MonoBehaviour
     {
         Stats = s;
 
-        // Build display name from profile (fallback to "Character")
-        var p = s != null ? s.profile : null;
-        string f = p != null ? (p.first_name ?? "").Trim() : "";
-        string l = p != null ? (p.last_name ?? "").Trim() : "";
-        string full = (f + " " + l).Trim();
-        name = string.IsNullOrEmpty(full) ? "Character" : full;
+        if (s)
+        {
+            s.RefreshHierarchyName();
+
+            // Keep any local characterStats component pointing at the live data so the Inspector displays it.
+            MirrorFields(s, GetComponent<characterStats>());
+
+            // Ensure we have a holder that references the real stats object for quick selection/debugging.
+            var holder = GetComponent<CharacterStatsHolder>() ?? gameObject.AddComponent<CharacterStatsHolder>();
+            holder.Bind(s);
+
+            // Build display name from profile (fallback to "Character")
+            var p = s.profile;
+            string f = (p?.first_name ?? string.Empty).Trim();
+            string l = (p?.last_name ?? string.Empty).Trim();
+            string full = (f + " " + l).Trim();
+            gameObject.name = string.IsNullOrEmpty(full) ? "Character" : full;
+        }
+        else
+        {
+            gameObject.name = "Character";
+        }
     }
 
     public Vector3 GetHeadWorldPosition()
@@ -69,5 +86,18 @@ public class CharacterHandle : MonoBehaviour
         return transform.position + Vector3.up * (1.7f * heightBias);
     }
 
+    static readonly BindingFlags CopyFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
+    static void MirrorFields(characterStats source, characterStats target)
+    {
+        if (!source || !target || ReferenceEquals(source, target)) return;
+
+        var fields = typeof(characterStats).GetFields(CopyFlags);
+        for (int i = 0; i < fields.Length; i++)
+        {
+            var field = fields[i];
+            if (field.IsStatic) continue;
+            field.SetValue(target, field.GetValue(source));
+        }
+    }
 }

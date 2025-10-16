@@ -50,8 +50,11 @@ public static class WorldGenerator
         if (save == null) yield break;
         if (save.roadNetwork == null) save.roadNetwork = new List<RoadSegment>();
         else save.roadNetwork.Clear();
+        if (save.lots == null) save.lots = new List<LotData>();
+        else save.lots.Clear();
         save.layout = new WorldLayoutData();
         save.layout.intersections = new List<IntersectionData>(); // Initialize list
+        save.layout.lots = new List<LotData>();
 
         // ---------- Dials ----------
         stat("Setting up dials…");
@@ -84,6 +87,13 @@ public static class WorldGenerator
         float clearanceFt  = 1.5f;                    // small fudge so curbs/stripes don't kiss
         float expandU      = Size.Feet(sidewalkFt + clearanceFt);
 
+        // Lots
+        Vector2 lotFrontageFeetRange      = new Vector2(35f, 60f);
+        Vector2 lotDepthFeetRange         = new Vector2(50f, 90f);
+        Vector2 lotSpacingFeetRange       = new Vector2(8f, 16f);
+        float   lotFrontSetbackFeet       = 6f;
+        float   lotIntersectionSetbackFeet= 35f;
+
         // OUTWARD-CORNER connectors (one per corner)
         float minConnectorSpacing = 40f;    // min distance between connector start/end points
         float connectorMin        = 10.0f;  // avoid tiny stubs
@@ -107,6 +117,8 @@ public static class WorldGenerator
 
         Rect P = RectFromSizeCentered(parkSize);
         save.layout.centerParkBounds = P;
+        save.layout.centerParkCorners = RectToPolygon(P);
+        save.layout.centerParkRotationDeg = 0f;
 
         float pctPad = gridEdgePaddingPercent > 0f ? Mathf.Min(W.width, W.height) * gridEdgePaddingPercent : 0f;
         float pad    = Mathf.Max(gridEdgePadding, pctPad);
@@ -320,6 +332,165 @@ public static class WorldGenerator
             save.roadNetwork.Add(new RoadSegment { start = s.a, end = s.b, width = s.width, type = s.type });
         }
 
+        // ---------- Lots ----------
+        stat("Placing lots…");
+        yield return null;
+        {
+            float sidewalkU = Size.Feet(sidewalkFt);
+            float frontageMinU = Size.Feet(lotFrontageFeetRange.x);
+            float frontageMaxU = Size.Feet(lotFrontageFeetRange.y);
+            float depthMinU = Size.Feet(lotDepthFeetRange.x);
+            float depthMaxU = Size.Feet(lotDepthFeetRange.y);
+            float spacingMinU = Size.Feet(lotSpacingFeetRange.x);
+            float spacingMaxU = Size.Feet(lotSpacingFeetRange.y);
+            float frontSetbackU = Size.Feet(lotFrontSetbackFeet);
+            float intersectionSetbackU = Size.Feet(lotIntersectionSetbackFeet);
+
+            frontageMaxU = Mathf.Max(frontageMinU, frontageMaxU);
+            depthMaxU = Mathf.Max(depthMinU, depthMaxU);
+            spacingMaxU = Mathf.Max(spacingMinU, spacingMaxU);
+
+            var lots = save.layout.lots;
+            var gameLots = save.lots;
+            lots.Clear();
+            gameLots.Clear();
+
+            Rect worldBounds = save.layout.worldBounds;
+            Rect parkBounds = save.layout.centerParkBounds;
+
+            AlignCenterPark(
+                ref parkBounds,
+                worldBounds,
+                all,
+                sidewalkU,
+                frontSetbackU,
+                intersectionSetbackU,
+                out float parkRotationDeg,
+                out Vector2[] parkCorners);
+
+            save.layout.centerParkBounds = parkBounds;
+            save.layout.centerParkRotationDeg = parkRotationDeg;
+            save.layout.centerParkCorners = parkCorners;
+            Rect parkAabb = PolygonBounds(parkCorners);
+
+            var processedSegments = new HashSet<ulong>();
+            int lotCounter = 0;
+
+            for (int i = 0; i < save.roadNetwork.Count; i++)
+            {
+                var road = save.roadNetwork[i];
+                if (road.type != RoadType.Local) continue;
+
+                ulong key = EdgeKey(road.start, road.end, road.type);
+                if (!processedSegments.Add(key))
+                    continue;
+
+                Vector2 start = road.start;
+                Vector2 end = road.end;
+                float segLength = Vector2.Distance(start, end);
+                if (segLength < frontageMinU * 1.5f)
+                    continue;
+
+                Vector2 dir = (end - start).normalized;
+                if (dir.sqrMagnitude <= 1e-6f)
+                    continue;
+                Vector2 perp = new Vector2(-dir.y, dir.x);
+
+                if (segLength <= 2f * intersectionSetbackU + frontageMinU)
+                    continue;
+
+                for (int side = 0; side < 2; side++)
+                {
+                    float sideSign = side == 0 ? 1f : -1f;
+                    float baseOffset = (road.width * 0.5f) + sidewalkU + frontSetbackU;
+                    float pos = intersectionSetbackU + Random.Range(spacingMinU, spacingMaxU);
+
+                    while (pos + frontageMinU <= segLength - intersectionSetbackU)
+                    {
+                        float maxFrontageAllowed = segLength - intersectionSetbackU - pos;
+                        if (maxFrontageAllowed < frontageMinU)
+                            break;
+
+                        float frontage = Random.Range(frontageMinU, frontageMaxU);
+                        float depth = Random.Range(depthMinU, depthMaxU);
+                        float spacingAfterLot = Random.Range(spacingMinU, spacingMaxU);
+
+                        float placedFrontage = 0f;
+                        bool placed = false;
+
+                        for (int depthAttempt = 0; depthAttempt < 3 && !placed; depthAttempt++)
+                        {
+                            float depthFactor = depthAttempt == 0 ? 1f : Mathf.Pow(0.75f, depthAttempt);
+                            float testDepth = Mathf.Clamp(depth * depthFactor, depthMinU, depthMaxU);
+                            float backOffset = baseOffset + testDepth;
+
+                            for (int frontageAttempt = 0; frontageAttempt < 3 && !placed; frontageAttempt++)
+                            {
+                                float frontageFactor = frontageAttempt == 0 ? 1f : Mathf.Pow(0.85f, frontageAttempt);
+                                float testFrontage = Mathf.Clamp(frontage * frontageFactor, frontageMinU, Mathf.Min(frontageMaxU, maxFrontageAllowed));
+                                if (testFrontage < frontageMinU)
+                                    continue;
+
+                                var corners = BuildLotCorners(start, dir, perp, pos, testFrontage, baseOffset, backOffset, sideSign);
+                                Rect rect = RectFromPoints(corners[0], corners[1], corners[2], corners[3]);
+
+                                if (rect.width < 0.5f || rect.height < 0.5f)
+                                    continue;
+
+                                if (!AllCornersInside(worldBounds, corners))
+                                    continue;
+
+                                bool parkIntersects = false;
+                                if (parkCorners != null && parkCorners.Length >= 3)
+                                {
+                                    if (parkAabb.Overlaps(rect) && PolygonsIntersect(corners, parkCorners))
+                                        parkIntersects = true;
+                                }
+                                else if (parkBounds.width > 0f && parkBounds.height > 0f)
+                                {
+                                    parkIntersects = PolygonIntersectsRect(corners, parkBounds);
+                                }
+
+                                if (parkIntersects)
+                                    continue;
+
+                                if (IntersectsExistingLots(corners, rect, lots))
+                                    continue;
+
+                                float rotationDeg = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                                if (rotationDeg < 0f) rotationDeg += 360f;
+
+                                var lot = new LotData
+                                {
+                                    bounds = rect,
+                                    corners = corners,
+                                    rotationDeg = rotationDeg
+                                };
+                                lots.Add(lot);
+                                gameLots.Add(lot);
+
+                                lotCounter++;
+                                if ((lotCounter & 63) == 0)
+                                    yield return null;
+
+                                placedFrontage = testFrontage;
+                                placed = true;
+                            }
+                        }
+
+                        if (placed)
+                        {
+                            pos += placedFrontage + spacingAfterLot;
+                        }
+                        else
+                        {
+                            pos += Mathf.Max(spacingMinU, spacingAfterLot);
+                        }
+                    }
+                }
+            }
+        }
+
         // ---------- Characters ----------
         stat("Generating characters…");
         onProgress?.Invoke(0.9f);
@@ -333,6 +504,418 @@ public static class WorldGenerator
         prog(1f);
 
         // ---------- utils ----------
+        static Rect RectFromPoints(Vector2 a, Vector2 b, Vector2 c, Vector2 d)
+        {
+            float minX = Mathf.Min(Mathf.Min(a.x, b.x), Mathf.Min(c.x, d.x));
+            float maxX = Mathf.Max(Mathf.Max(a.x, b.x), Mathf.Max(c.x, d.x));
+            float minY = Mathf.Min(Mathf.Min(a.y, b.y), Mathf.Min(c.y, d.y));
+            float maxY = Mathf.Max(Mathf.Max(a.y, b.y), Mathf.Max(c.y, d.y));
+
+            if (maxX <= minX || maxY <= minY)
+            {
+                float width = Mathf.Max(0.01f, maxX - minX);
+                float height = Mathf.Max(0.01f, maxY - minY);
+                return new Rect(minX, minY, width, height);
+            }
+
+            return Rect.MinMaxRect(minX, minY, maxX, maxY);
+        }
+
+        static Vector2[] BuildLotCorners(
+            Vector2 start,
+            Vector2 dir,
+            Vector2 perp,
+            float pos,
+            float frontage,
+            float baseOffset,
+            float backOffset,
+            float sideSign)
+        {
+            Vector2 frontStart = start + dir * pos + perp * sideSign * baseOffset;
+            Vector2 frontEnd = start + dir * (pos + frontage) + perp * sideSign * baseOffset;
+            Vector2 backEnd = start + dir * (pos + frontage) + perp * sideSign * backOffset;
+            Vector2 backStart = start + dir * pos + perp * sideSign * backOffset;
+            return new[] { frontStart, frontEnd, backEnd, backStart };
+        }
+
+        static Vector2[] RectToPolygon(Rect rect)
+            => new[]
+            {
+                new Vector2(rect.xMin, rect.yMin),
+                new Vector2(rect.xMax, rect.yMin),
+                new Vector2(rect.xMax, rect.yMax),
+                new Vector2(rect.xMin, rect.yMax)
+            };
+
+        static Vector2[] BuildRotatedRectCorners(Rect rect, float rotationDeg)
+        {
+            float rad = rotationDeg * Mathf.Deg2Rad;
+            Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+            Vector2 perp = new Vector2(-dir.y, dir.x);
+            Vector2 center = rect.center;
+            Vector2 halfDir = dir * (rect.width * 0.5f);
+            Vector2 halfPerp = perp * (rect.height * 0.5f);
+
+            Vector2 c0 = center - halfDir - halfPerp;
+            Vector2 c1 = center + halfDir - halfPerp;
+            Vector2 c2 = center + halfDir + halfPerp;
+            Vector2 c3 = center - halfDir + halfPerp;
+            return new[] { c0, c1, c2, c3 };
+        }
+
+        static Rect PolygonBounds(Vector2[] poly)
+        {
+            if (poly == null || poly.Length == 0)
+                return new Rect();
+
+            float minX = poly[0].x;
+            float maxX = poly[0].x;
+            float minY = poly[0].y;
+            float maxY = poly[0].y;
+
+            for (int i = 1; i < poly.Length; i++)
+            {
+                var p = poly[i];
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
+            }
+
+            const float eps = 0.005f;
+            if (Mathf.Abs(maxX - minX) < eps)
+            {
+                minX -= eps * 0.5f;
+                maxX += eps * 0.5f;
+            }
+            if (Mathf.Abs(maxY - minY) < eps)
+            {
+                minY -= eps * 0.5f;
+                maxY += eps * 0.5f;
+            }
+
+            return Rect.MinMaxRect(minX, minY, maxX, maxY);
+        }
+
+        static bool AllCornersInside(Rect outer, Vector2[] corners)
+        {
+            if (corners == null) return false;
+            for (int i = 0; i < corners.Length; i++)
+            {
+                if (!InRect(outer, corners[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        static bool PolygonIntersectsRect(Vector2[] poly, Rect rect)
+            => PolygonsIntersect(poly, RectToPolygon(rect));
+
+        static bool IntersectsExistingLots(Vector2[] candidate, Rect candidateBounds, List<LotData> existing)
+        {
+            if (candidate == null || candidate.Length < 3)
+                return false;
+            if (existing == null)
+                return false;
+
+            for (int i = 0; i < existing.Count; i++)
+            {
+                var other = existing[i];
+                if (!candidateBounds.Overlaps(other.bounds))
+                    continue;
+
+                Vector2[] otherPoly = other.corners != null && other.corners.Length >= 3
+                    ? other.corners
+                    : RectToPolygon(other.bounds);
+
+                if (PolygonsIntersect(candidate, otherPoly))
+                    return true;
+            }
+
+            return false;
+        }
+
+        static bool PolygonsIntersect(Vector2[] polyA, Vector2[] polyB)
+        {
+            if (polyA == null || polyB == null) return false;
+            if (polyA.Length < 3 || polyB.Length < 3) return false;
+
+            Rect boundsA = PolygonBounds(polyA);
+            Rect boundsB = PolygonBounds(polyB);
+            if (!boundsA.Overlaps(boundsB))
+                return false;
+
+            for (int i = 0; i < polyA.Length; i++)
+            {
+                if (PointInPolygon(polyA[i], polyB))
+                    return true;
+            }
+
+            for (int j = 0; j < polyB.Length; j++)
+            {
+                if (PointInPolygon(polyB[j], polyA))
+                    return true;
+            }
+
+            for (int i = 0; i < polyA.Length; i++)
+            {
+                Vector2 a1 = polyA[i];
+                Vector2 a2 = polyA[(i + 1) % polyA.Length];
+                for (int j = 0; j < polyB.Length; j++)
+                {
+                    Vector2 b1 = polyB[j];
+                    Vector2 b2 = polyB[(j + 1) % polyB.Length];
+                    if (SegmentsIntersect(a1, a2, b1, b2))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        static void AlignCenterPark(
+            ref Rect parkBounds,
+            Rect worldBounds,
+            List<TempSeg> segments,
+            float sidewalkU,
+            float frontSetbackU,
+            float intersectionSetbackU,
+            out float rotationDeg,
+            out Vector2[] corners)
+        {
+            rotationDeg = 0f;
+            corners = RectToPolygon(parkBounds);
+
+            if (segments == null || segments.Count == 0)
+                return;
+
+            Rect originalBounds = parkBounds;
+            Vector2 originalCenter = parkBounds.center;
+            float width = parkBounds.width;
+            float height = parkBounds.height;
+
+            if (width <= 0f || height <= 0f)
+            {
+                rotationDeg = NormalizeAngle(DetermineParkRotation(parkBounds, segments));
+                corners = BuildRotatedRectCorners(parkBounds, rotationDeg);
+                return;
+            }
+
+            float halfWidth = width * 0.5f;
+            float halfHeight = height * 0.5f;
+
+            TempSeg? bestSegNullable = null;
+            Vector2 bestClosest = Vector2.zero;
+            float bestDistSq = float.PositiveInfinity;
+            int bestScore = int.MinValue;
+            float bestSegLength = 0f;
+
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var seg = segments[i];
+                Vector2 diff = seg.b - seg.a;
+                float lenSq = diff.sqrMagnitude;
+                if (lenSq < 1f)
+                    continue;
+
+                float segLength = Mathf.Sqrt(lenSq);
+                bool canFit = segLength >= (width + 2f * intersectionSetbackU);
+                int score = 0;
+                if (canFit) score += 2;
+                if (seg.type == RoadType.Local) score += 1;
+
+                Vector2 closest = ProjectPointOnSegment(originalCenter, seg.a, seg.b, out _);
+                float distSq = (closest - originalCenter).sqrMagnitude;
+
+                if (score < bestScore)
+                    continue;
+
+                if (score == bestScore && distSq >= bestDistSq)
+                    continue;
+
+                bestScore = score;
+                bestDistSq = distSq;
+                bestSegNullable = seg;
+                bestClosest = closest;
+                bestSegLength = segLength;
+            }
+
+            if (!bestSegNullable.HasValue)
+            {
+                rotationDeg = NormalizeAngle(DetermineParkRotation(parkBounds, segments));
+                corners = BuildRotatedRectCorners(parkBounds, rotationDeg);
+                return;
+            }
+
+            var bestSeg = bestSegNullable.Value;
+            Vector2 dir = (bestSeg.b - bestSeg.a).normalized;
+            if (dir.sqrMagnitude <= 1e-6f)
+            {
+                rotationDeg = NormalizeAngle(DetermineParkRotation(parkBounds, segments));
+                corners = BuildRotatedRectCorners(parkBounds, rotationDeg);
+                return;
+            }
+
+            Vector2 perp = new Vector2(-dir.y, dir.x);
+            float sideSign = Mathf.Sign(Vector2.Dot(originalCenter - bestClosest, perp));
+            if (Mathf.Abs(sideSign) < 1e-3f)
+                sideSign = 1f;
+
+            float baseOffset = (bestSeg.width * 0.5f) + sidewalkU + frontSetbackU;
+            float minCenter = intersectionSetbackU + halfWidth;
+            float maxCenter = bestSegLength - intersectionSetbackU - halfWidth;
+
+            float initialAlong = Vector2.Dot(bestClosest - bestSeg.a, dir);
+            float clampedAlong;
+            if (maxCenter >= minCenter)
+            {
+                clampedAlong = Mathf.Clamp(initialAlong, minCenter, maxCenter);
+            }
+            else
+            {
+                clampedAlong = Mathf.Clamp(bestSegLength * 0.5f, 0f, bestSegLength);
+            }
+
+            Vector2 alongPoint = bestSeg.a + dir * clampedAlong;
+            Vector2 newCenter = alongPoint + perp * sideSign * (baseOffset + halfHeight);
+
+            Rect newBounds = new Rect(newCenter.x - halfWidth, newCenter.y - halfHeight, width, height);
+            float newRotationDeg = NormalizeAngle(Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+            Vector2[] newCorners = BuildRotatedRectCorners(newBounds, newRotationDeg);
+
+            if (!AllCornersInside(worldBounds, newCorners))
+            {
+                Rect currentAabb = PolygonBounds(newCorners);
+                Vector2 shift = Vector2.zero;
+                bool adjusted = false;
+
+                if (currentAabb.xMin < worldBounds.xMin && currentAabb.xMax <= worldBounds.xMax)
+                {
+                    shift.x = worldBounds.xMin - currentAabb.xMin;
+                    adjusted = true;
+                }
+                else if (currentAabb.xMax > worldBounds.xMax && currentAabb.xMin >= worldBounds.xMin)
+                {
+                    shift.x = worldBounds.xMax - currentAabb.xMax;
+                    adjusted = true;
+                }
+
+                if (currentAabb.yMin < worldBounds.yMin && currentAabb.yMax <= worldBounds.yMax)
+                {
+                    shift.y = worldBounds.yMin - currentAabb.yMin;
+                    adjusted = true;
+                }
+                else if (currentAabb.yMax > worldBounds.yMax && currentAabb.yMin >= worldBounds.yMin)
+                {
+                    shift.y = worldBounds.yMax - currentAabb.yMax;
+                    adjusted = true;
+                }
+
+                if (adjusted)
+                {
+                    newCenter += shift;
+                    newBounds = new Rect(newCenter.x - halfWidth, newCenter.y - halfHeight, width, height);
+                    newCorners = BuildRotatedRectCorners(newBounds, newRotationDeg);
+                }
+
+                if (!AllCornersInside(worldBounds, newCorners))
+                {
+                    rotationDeg = NormalizeAngle(DetermineParkRotation(originalBounds, segments));
+                    corners = BuildRotatedRectCorners(originalBounds, rotationDeg);
+                    parkBounds = originalBounds;
+                    return;
+                }
+            }
+
+            parkBounds = newBounds;
+            rotationDeg = newRotationDeg;
+            corners = newCorners;
+        }
+
+        static float DetermineParkRotation(Rect parkBounds, List<TempSeg> segments)
+        {
+            Vector2 center = parkBounds.center;
+            float bestDistSq = float.PositiveInfinity;
+            Vector2 bestDir = Vector2.right;
+
+            if (segments != null)
+            {
+                for (int i = 0; i < segments.Count; i++)
+                {
+                    var seg = segments[i];
+                    Vector2 diff = seg.b - seg.a;
+                    float lenSq = diff.sqrMagnitude;
+                    if (lenSq < 1f) continue;
+
+                    Vector2 closest = ProjectPointOnSegment(center, seg.a, seg.b, out _);
+                    float distSq = (closest - center).sqrMagnitude;
+                    if (distSq < bestDistSq)
+                    {
+                        bestDistSq = distSq;
+                        bestDir = diff.normalized;
+                    }
+                }
+            }
+
+            float angleDeg = Mathf.Atan2(bestDir.y, bestDir.x) * Mathf.Rad2Deg;
+            return NormalizeAngle(angleDeg);
+        }
+
+        static float NormalizeAngle(float degrees)
+        {
+            if (float.IsNaN(degrees) || float.IsInfinity(degrees))
+                return 0f;
+
+            while (degrees < 0f) degrees += 360f;
+            while (degrees >= 360f) degrees -= 360f;
+            return degrees;
+        }
+
+        static bool PointOnSegment(Vector2 p, Vector2 a, Vector2 b, float epsilon = 1e-4f)
+        {
+            Vector2 ap = p - a;
+            Vector2 ab = b - a;
+            float cross = Cross(ab, ap);
+            if (Mathf.Abs(cross) > epsilon)
+                return false;
+
+            float dot = Vector2.Dot(ap, ab);
+            if (dot < -epsilon)
+                return false;
+
+            float abLenSq = Vector2.Dot(ab, ab);
+            if (dot > abLenSq + epsilon)
+                return false;
+
+            return true;
+        }
+
+        static bool PointInPolygon(Vector2 point, Vector2[] poly)
+        {
+            bool inside = false;
+            for (int i = 0, j = poly.Length - 1; i < poly.Length; j = i++)
+            {
+                Vector2 pi = poly[i];
+                Vector2 pj = poly[j];
+
+                if (PointOnSegment(point, pi, pj))
+                    return true;
+
+                bool intersect = ((pi.y > point.y) != (pj.y > point.y));
+                if (!intersect)
+                    continue;
+
+                float denom = pj.y - pi.y;
+                if (Mathf.Abs(denom) < 1e-6f)
+                    continue;
+
+                float x = (pj.x - pi.x) * (point.y - pi.y) / denom + pi.x;
+                if (point.x < x)
+                    inside = !inside;
+            }
+            return inside;
+        }
+
         static bool InRect(Rect r, Vector2 p) => p.x >= r.xMin && p.x <= r.xMax && p.y >= r.yMin && p.y <= r.yMax;
         static float DistToRectEdge(Rect r, Vector2 p) { float dx = Mathf.Min(Mathf.Abs(p.x - r.xMin), Mathf.Abs(r.xMax - p.x)); float dy = Mathf.Min(Mathf.Abs(p.y - r.yMin), Mathf.Abs(r.yMax - p.y)); return Mathf.Min(dx, dy); }
         static void BuildLocalBounds(Patch pa, Rect rect, out float uMin, out float uMax, out float vMin, out float vMax) { float ang = pa.angleDeg * Mathf.Deg2Rad; float c = Mathf.Cos(-ang), s = Mathf.Sin(-ang); Vector2[] corners = new[] { new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMin), new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMin, rect.yMax) }; float umin = float.PositiveInfinity, umax = float.NegativeInfinity; float vmin = float.PositiveInfinity, vmax = float.NegativeInfinity; foreach (var w in corners) { var d = w - pa.center; float u = d.x * c + d.y * s; float v = -d.x * s + d.y * c; umin = Mathf.Min(umin, u); umax = Mathf.Max(umax, u); vmin = Mathf.Min(vmin, v); vmax = Mathf.Max(vmax, v); } uMin = umin - 2f; uMax = umax + 2f; vMin = vmin - 2f; vMax = vmax + 2f; }

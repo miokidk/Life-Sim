@@ -16,6 +16,8 @@ public class WorldLayoutData
 {
     public Rect worldBounds;
     public Rect centerParkBounds;
+    public Vector2[] centerParkCorners;
+    public float centerParkRotationDeg;
     public List<LotData> lots;
     public List<IntersectionData> intersections; 
 }
@@ -44,6 +46,8 @@ public class LotData
 {
     public string lotId = Guid.NewGuid().ToString();
     public Rect bounds;
+    public Vector2[] corners = Array.Empty<Vector2>();
+    public float rotationDeg;
     public string ownerCharacterId; // Can be null if unowned
 }
 

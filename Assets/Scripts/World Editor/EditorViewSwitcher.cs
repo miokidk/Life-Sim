@@ -46,6 +46,9 @@ public class EditorViewSwitcher : MonoBehaviour
 
     // NEW: Flag to ignore the first selection event on load
     private bool _hasHandledInitialSelection = false;
+    private Vector3 parkCameraBaseOffset;
+    private Quaternion parkCameraBaseRotation;
+    private bool parkCameraBaseCaptured;
 
     void Awake()
     {
@@ -73,6 +76,13 @@ public class EditorViewSwitcher : MonoBehaviour
             UpdateKnobVisibility(controller.State);
             // MODIFIED: We no longer check the initial state here. Tilt is on by default.
             // _isCharacterSelected = controller.Selected != null; // This line was removed.
+        }
+
+        if (camTargetCenterPark && !parkCameraBaseCaptured)
+        {
+            parkCameraBaseOffset = camTargetCenterPark.position;
+            parkCameraBaseRotation = camTargetCenterPark.rotation;
+            parkCameraBaseCaptured = true;
         }
 
         Apply(Current, animate: false);
@@ -154,6 +164,11 @@ public class EditorViewSwitcher : MonoBehaviour
             Vector2 target = (center ? knobPosCenterPark : knobPosWorldView).anchoredPosition;
             if (animate) StartCoroutine(AnimateKnob(target));
             else knob.anchoredPosition = target;
+        }
+
+        if (center && camTargetCenterPark)
+        {
+            AlignCenterParkCamera();
         }
 
         if (centerParkVCam != null && worldViewVCam != null)
@@ -241,5 +256,28 @@ public class EditorViewSwitcher : MonoBehaviour
     {
         if (!knob) return;
         knob.gameObject.SetActive(s != EditorController.EditorState.CharacterCreator);
+    }
+
+    void AlignCenterParkCamera()
+    {
+        if (!parkCameraBaseCaptured || controller == null || controller.Save?.layout == null)
+            return;
+
+        var layout = controller.Save.layout;
+        Vector2 center2 = layout.centerParkBounds.center;
+        Vector3 center = new Vector3(center2.x, 0f, center2.y);
+        float rotationDeg = layout.centerParkRotationDeg;
+        Quaternion yaw = Quaternion.Euler(0f, rotationDeg, 0f);
+
+        Vector3 planarBase = Vector3.ProjectOnPlane(parkCameraBaseOffset, Vector3.up);
+        float planarMagnitude = planarBase.magnitude;
+        float forwardSign = planarMagnitude > 1e-3f
+            ? Mathf.Sign(Vector3.Dot(planarBase, Vector3.forward))
+            : -1f;
+        Vector3 forwardAxis = yaw * Vector3.forward;
+        Vector3 offset = forwardAxis * (planarMagnitude * forwardSign) + Vector3.up * parkCameraBaseOffset.y;
+        Quaternion rotation = yaw * parkCameraBaseRotation;
+
+        camTargetCenterPark.SetPositionAndRotation(center + offset, rotation);
     }
 }

@@ -69,7 +69,7 @@ public class WorldVisualizer : MonoBehaviour
     [SerializeField, Min(0f)] private float markingLift = 0.03f;
 
     [Header("Lots (debug)")]
-    [SerializeField] private bool drawLots = false;
+    [SerializeField] private bool drawLots = true;
     [SerializeField] private Color lotColor = new Color(0f, 1f, 0.1f, 0.9f);
 
     private struct CornerPoints
@@ -94,6 +94,7 @@ public class WorldVisualizer : MonoBehaviour
     {
         public bool drawSidewalks;
         public bool drawCrosswalks;
+        public bool drawLots;
         public float dashFeet;
         public float gapFeet;
         public float doubleYellowGapFeet;
@@ -110,11 +111,13 @@ public class WorldVisualizer : MonoBehaviour
         public Color curbEdgeColor;
         public Color sidewalkEdgeColor;
         public Color crosswalkColor;
+        public Color lotColor;
 
         public bool Equals(GeometrySettingsSnapshot other)
         {
             return drawSidewalks == other.drawSidewalks &&
                    drawCrosswalks == other.drawCrosswalks &&
+                   drawLots == other.drawLots &&
                    dashFeet == other.dashFeet &&
                    gapFeet == other.gapFeet &&
                    doubleYellowGapFeet == other.doubleYellowGapFeet &&
@@ -130,7 +133,8 @@ public class WorldVisualizer : MonoBehaviour
                    laneDashWhite == other.laneDashWhite &&
                    curbEdgeColor == other.curbEdgeColor &&
                    sidewalkEdgeColor == other.sidewalkEdgeColor &&
-                   crosswalkColor == other.crosswalkColor;
+                   crosswalkColor == other.crosswalkColor &&
+                   lotColor == other.lotColor;
         }
     }
 
@@ -139,6 +143,7 @@ public class WorldVisualizer : MonoBehaviour
     private readonly List<DebugLine> _roadLines = new();
     private readonly List<DebugLine> _sidewalkLines = new();
     private readonly List<DebugLine> _crosswalkLines = new();
+    private readonly List<DebugLine> _lotLines = new();
     private bool _geometryDirty = true;
     private bool _hasGeometrySettingsSnapshot;
     private GeometrySettingsSnapshot _lastGeometrySettings;
@@ -156,6 +161,9 @@ public class WorldVisualizer : MonoBehaviour
 
         if (drawCrosswalks && _crosswalkLines.Count > 0)
             DrawLines(_crosswalkLines);
+
+        if (drawLots && _lotLines.Count > 0)
+            DrawLines(_lotLines);
     }
 
     private static void DrawLines(List<DebugLine> lines)
@@ -200,6 +208,7 @@ public class WorldVisualizer : MonoBehaviour
         {
             drawSidewalks = drawSidewalks,
             drawCrosswalks = drawCrosswalks,
+            drawLots = drawLots,
             dashFeet = dashFeet,
             gapFeet = gapFeet,
             doubleYellowGapFeet = doubleYellowGapFeet,
@@ -215,7 +224,8 @@ public class WorldVisualizer : MonoBehaviour
             laneDashWhite = laneDashWhite,
             curbEdgeColor = curbEdgeColor,
             sidewalkEdgeColor = sidewalkEdgeColor,
-            crosswalkColor = crosswalkColor
+            crosswalkColor = crosswalkColor,
+            lotColor = lotColor
         };
     }
 
@@ -241,8 +251,10 @@ public class WorldVisualizer : MonoBehaviour
         _roadLines.Clear();
         _sidewalkLines.Clear();
         _crosswalkLines.Clear();
+        _lotLines.Clear();
 
-        var roads = _saveToVisualize.roadNetwork;
+        var save = _saveToVisualize;
+        var roads = save.roadNetwork;
         if (roads != null && roads.Count > 0)
         {
             BuildRoadLines(roads);
@@ -251,9 +263,13 @@ public class WorldVisualizer : MonoBehaviour
                 BuildSidewalkLines(roads);
         }
 
-        var intersections = _saveToVisualize.layout?.intersections;
+        var intersections = save.layout?.intersections;
         if (drawCrosswalks && intersections != null && intersections.Count > 0)
             BuildCrosswalkLines(intersections);
+
+        var lots = save.layout?.lots;
+        if (drawLots)
+            BuildLotLines(lots);
 
         _lastGeometrySettings = currentSettings;
         _hasGeometrySettingsSnapshot = true;
@@ -404,6 +420,75 @@ public class WorldVisualizer : MonoBehaviour
         }
     }
 
+    private void BuildLotLines(List<LotData> lots)
+    {
+        float y = parkYOffset + 0.01f;
+
+        int lotCount = lots?.Count ?? 0;
+        for (int i = 0; i < lotCount; i++)
+        {
+            var lot = lots[i];
+            var footprint = lot.corners;
+
+            if (footprint != null && footprint.Length >= 3)
+            {
+                int count = footprint.Length;
+                for (int c = 0; c < count; c++)
+                {
+                    Vector2 a2 = footprint[c];
+                    Vector2 b2 = footprint[(c + 1) % count];
+                    Vector3 a = new Vector3(a2.x, y, a2.y);
+                    Vector3 b = new Vector3(b2.x, y, b2.y);
+                    _lotLines.Add(new DebugLine { start = a, end = b, color = lotColor });
+                }
+            }
+            else
+            {
+                var rect = lot.bounds;
+                Vector3 p1 = new Vector3(rect.xMin, y, rect.yMin);
+                Vector3 p2 = new Vector3(rect.xMax, y, rect.yMin);
+                Vector3 p3 = new Vector3(rect.xMax, y, rect.yMax);
+                Vector3 p4 = new Vector3(rect.xMin, y, rect.yMax);
+
+                _lotLines.Add(new DebugLine { start = p1, end = p2, color = lotColor });
+                _lotLines.Add(new DebugLine { start = p2, end = p3, color = lotColor });
+                _lotLines.Add(new DebugLine { start = p3, end = p4, color = lotColor });
+                _lotLines.Add(new DebugLine { start = p4, end = p1, color = lotColor });
+            }
+        }
+
+        var layout = _saveToVisualize?.layout;
+        if (layout != null)
+        {
+            var parkFootprint = layout.centerParkCorners;
+            if (parkFootprint != null && parkFootprint.Length >= 3)
+            {
+                int count = parkFootprint.Length;
+                for (int c = 0; c < count; c++)
+                {
+                    Vector2 a2 = parkFootprint[c];
+                    Vector2 b2 = parkFootprint[(c + 1) % count];
+                    Vector3 a = new Vector3(a2.x, y, a2.y);
+                    Vector3 b = new Vector3(b2.x, y, b2.y);
+                    _lotLines.Add(new DebugLine { start = a, end = b, color = lotColor });
+                }
+            }
+            else
+            {
+                var rect = layout.centerParkBounds;
+                Vector3 p1 = new Vector3(rect.xMin, y, rect.yMin);
+                Vector3 p2 = new Vector3(rect.xMax, y, rect.yMin);
+                Vector3 p3 = new Vector3(rect.xMax, y, rect.yMax);
+                Vector3 p4 = new Vector3(rect.xMin, y, rect.yMax);
+
+                _lotLines.Add(new DebugLine { start = p1, end = p2, color = lotColor });
+                _lotLines.Add(new DebugLine { start = p2, end = p3, color = lotColor });
+                _lotLines.Add(new DebugLine { start = p3, end = p4, color = lotColor });
+                _lotLines.Add(new DebugLine { start = p4, end = p1, color = lotColor });
+            }
+        }
+    }
+
     private static void AddDashedLineSegments(List<DebugLine> target, Vector3 start, Vector3 end, Color color, float dashU, float gapU)
     {
         float length = Vector3.Distance(start, end);
@@ -434,15 +519,70 @@ public class WorldVisualizer : MonoBehaviour
     }
     #endregion
 
-    private GameObject CreatePlane(string name, Rect bounds, Material material, float yOffset, bool isPark)
+    private GameObject CreatePlane(
+        string name,
+        Rect bounds,
+        float rotationDeg,
+        Material material,
+        float yOffset,
+        bool isPark,
+        Vector2[] orientedCorners = null)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Plane);
         go.name = name;
         go.transform.SetParent(_worldContainer, worldPositionStays: false);
 
+        Vector3 center = new Vector3(bounds.center.x, yOffset, bounds.center.y);
+        float width = bounds.width;
+        float height = bounds.height;
+        Quaternion rotation = Quaternion.Euler(0f, rotationDeg, 0f);
+
+        if (orientedCorners != null && orientedCorners.Length >= 3)
+        {
+            Vector3 c0 = new Vector3(orientedCorners[0].x, yOffset, orientedCorners[0].y);
+            Vector3 c1 = new Vector3(orientedCorners[1].x, yOffset, orientedCorners[1].y);
+            Vector3 c3 = new Vector3(orientedCorners[^1].x, yOffset, orientedCorners[^1].y);
+
+            Vector3 right = (c1 - c0);
+            Vector3 forward = (c3 - c0);
+            float rightMag = right.magnitude;
+            float forwardMag = forward.magnitude;
+
+            if (rightMag > 1e-4f && forwardMag > 1e-4f)
+            {
+                width = rightMag;
+                height = forwardMag;
+
+                right /= rightMag;
+                forward /= forwardMag;
+                Vector3 up = Vector3.Cross(right, forward).normalized;
+                if (up.sqrMagnitude < 1e-4f)
+                {
+                    up = Vector3.up;
+                    forward = Vector3.Cross(up, right).normalized;
+                }
+                else
+                {
+                    forward = Vector3.Cross(up, right).normalized;
+                }
+                rotation = Quaternion.LookRotation(forward, Vector3.up);
+            }
+
+            if (orientedCorners.Length >= 4)
+            {
+                Vector3 c2 = new Vector3(orientedCorners[2].x, yOffset, orientedCorners[2].y);
+                center = (c0 + c1 + c2 + c3) * 0.25f;
+            }
+            else
+            {
+                center = (c0 + c1 + c3) / 3f;
+            }
+        }
+
         // Unity Plane is 10x10 units
-        go.transform.position = new Vector3(bounds.center.x, yOffset, bounds.center.y);
-        go.transform.localScale = new Vector3(bounds.width * 0.1f, 1f, bounds.height * 0.1f);
+        go.transform.position = center;
+        go.transform.localScale = new Vector3(width * 0.1f, 1f, height * 0.1f);
+        go.transform.rotation = rotation;
 
         var mr = go.GetComponent<MeshRenderer>();
         if (mr && material)
@@ -474,9 +614,9 @@ public class WorldVisualizer : MonoBehaviour
         ClearContainer();
 
         if (worldMaterial)
-            CreatePlane("World Plane", save.layout.worldBounds, worldMaterial, 0f, false);
+            CreatePlane("World Plane", save.layout.worldBounds, 0f, worldMaterial, 0f, false);
         if (parkMaterial)
-            CreatePlane("Center Park", save.layout.centerParkBounds, parkMaterial, parkYOffset, true);
+            CreatePlane("Center Park", save.layout.centerParkBounds, save.layout.centerParkRotationDeg, parkMaterial, parkYOffset, true, save.layout.centerParkCorners);
     }
 
     #region Entry Points
@@ -520,14 +660,10 @@ public class WorldVisualizer : MonoBehaviour
             yield return DrawCrosswalksAsync(save.layout.intersections);
         }
 
-        if (drawLots && save.layout?.lots != null)
+        if (drawLots && save.layout?.lots != null && save.layout.lots.Count > 0)
         {
             onStatus?.Invoke("Outlining lots…");
-            foreach (var lot in save.layout.lots)
-            {
-                DrawRect(lot.bounds, lotColor, parkYOffset + 0.01f);
-                yield return null;
-            }
+            yield return DrawLotsAsync(save.layout.lots);
         }
 
         onProgress?.Invoke(1f);
@@ -607,17 +743,23 @@ public class WorldVisualizer : MonoBehaviour
 
     #endregion
 
-    #region Lots helper
-    private void DrawRect(Rect rect, Color color, float y)
+    #region Lots
+    IEnumerator DrawLotsAsync(List<LotData> lots)
     {
-        Vector3 p1 = new Vector3(rect.xMin, y, rect.yMin);
-        Vector3 p2 = new Vector3(rect.xMax, y, rect.yMin);
-        Vector3 p3 = new Vector3(rect.xMax, y, rect.yMax);
-        Vector3 p4 = new Vector3(rect.xMin, y, rect.yMax);
-        Debug.DrawLine(p1, p2, color);
-        Debug.DrawLine(p2, p3, color);
-        Debug.DrawLine(p3, p4, color);
-        Debug.DrawLine(p4, p1, color);
+        EnsureGeometry();
+        _ = lots;
+
+        if (!drawLots || _lotLines.Count == 0)
+            yield break;
+
+        for (int i = 0; i < _lotLines.Count; i++)
+        {
+            var line = _lotLines[i];
+            Debug.DrawLine(line.start, line.end, line.color);
+
+            if ((i & 15) == 15)
+                yield return null;
+        }
     }
     #endregion
 
